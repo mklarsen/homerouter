@@ -70,8 +70,16 @@ install_packages() {
 
     info "installing: ${missing[*]}"
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
-    apt-get install -y -qq "${missing[@]}"
+    # A single broken third-party repository must not abort the deployment;
+    # the cached lists are usually good enough for these packages.
+    if ! apt-get update -qq; then
+        warn "apt-get update reported errors -- a third-party repository is likely broken"
+        warn "continuing with the package lists already on disk"
+    fi
+    if ! apt-get install -y -qq "${missing[@]}"; then
+        err "could not install: ${missing[*]}"
+        die "fix apt (see the output above) and rerun"
+    fi
     ok "packages installed"
 }
 
