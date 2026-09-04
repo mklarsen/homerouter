@@ -206,6 +206,9 @@ To validate the configuration without touching the system (also what CI runs):
 - `install.sh` always resolves `releases/latest`, so the one-liner installs the
   most recently published version.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, coding rules and
+the operational handover notes.
+
 ## Disclaimer
 
 Provided as-is, without warranty of any kind. Running a router directly on the

@@ -12,6 +12,11 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+### Added
+
+- `CONTRIBUTING.md` covering the development workflow, release process and an
+  operational handover section for whoever runs the box.
+
 ## [0.2.0] - 2026-09-04
 
 ### Added
