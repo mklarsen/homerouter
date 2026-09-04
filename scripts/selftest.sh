@@ -35,7 +35,9 @@ render_template "$CONF_DIR/dnsmasq/router.conf.template"    "$WORK_DIR/router.co
 ok "4 templates rendered"
 
 log "Checking for unresolved placeholders"
+# shellcheck disable=SC2016  # the ${...} pattern is matched literally
 if grep -rn '\${[A-Z0-9_]\+}' "$WORK_DIR" >/dev/null 2>&1; then
+    # shellcheck disable=SC2016
     grep -rn '\${[A-Z0-9_]\+}' "$WORK_DIR" || true
     die "unsubstituted variables left in the rendered output"
 fi

@@ -186,10 +186,11 @@ if command -v dnsmasq >/dev/null 2>&1; then
     fi
 fi
 
-python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' \
-    "$NETPLAN_RENDERED" 2>/dev/null \
-    && ok "netplan YAML parses" \
-    || warn "could not pre-parse netplan YAML (python3-yaml missing?)"
+if python3 -c 'import sys,yaml; yaml.safe_load(open(sys.argv[1]))' "$NETPLAN_RENDERED" 2>/dev/null; then
+    ok "netplan YAML parses"
+else
+    warn "could not pre-parse netplan YAML (python3-yaml missing?)"
+fi
 
 # ------------------------------------------------------------ install files
 log "Installing configuration files"

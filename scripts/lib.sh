@@ -106,13 +106,18 @@ load_env() {
     : "${WIFI_VHT:=1}"
     : "${WIFI_WPA3_ONLY:=0}"
 
-    # Derived values.
+    # Derived values; consumed by render_template via TEMPLATE_VARS.
     LAN_PREFIXLEN4="${LAN_NET4##*/}"
-    [[ $LAN_PREFIXLEN4 == "$LAN_NET4" ]] && LAN_PREFIXLEN4=24
+    if [[ $LAN_PREFIXLEN4 == "$LAN_NET4" ]]; then
+        LAN_PREFIXLEN4=24
+    fi
     # nftables `define` cannot be empty; fall back to the primary address.
+    # shellcheck disable=SC2034  # exported through TEMPLATE_VARS
     NFT_IP4_SECONDARY="${WAN_IP4_SECONDARY:-$WAN_IP4_PRIMARY}"
+    # shellcheck disable=SC2034
     NFT_IP4_TERTIARY="${WAN_IP4_TERTIARY:-$WAN_IP4_PRIMARY}"
     # Only used inside a commented example in nftables.conf.
+    # shellcheck disable=SC2034
     LAN_IP6_PREFIX_EXAMPLE="${LAN_IP6%::*}"
 
     export UNUSED_IFS WIFI_WPA3_ONLY ENV_LOADED
