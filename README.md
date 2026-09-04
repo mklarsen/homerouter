@@ -45,10 +45,12 @@ live in a git-ignored `.env`; the repository only ships templates.
 │   ├── sysctl/99-router.conf                # forwarding + hardening
 │   └── systemd/resolved-no-stub.conf        # free up port 53 for dnsmasq
 ├── scripts/
-│   ├── lib.sh                               # helpers, .env loading, rendering
+│   ├── changelog.sh                          # read/validate CHANGELOG.md
+│   ├── lib.sh                                # helpers, .env loading, rendering
 │   ├── selftest.sh                           # render + validate, no system changes
 │   └── verify.sh                             # post-install health check
 ├── .env.example
+├── CHANGELOG.md
 ├── install.sh                                # bootstrap: fetch latest release
 ├── setup.sh
 └── LICENSE
@@ -187,15 +189,22 @@ To validate the configuration without touching the system (also what CI runs):
 
 ## Development & releases
 
-- Work happens on feature branches; `main` is the only long-lived branch.
-- Every pull request against `main` runs [ci.yml](.github/workflows/ci.yml):
-  ShellCheck, template rendering, `nft --check`, `dnsmasq --test`, netplan YAML
-  parsing and a guard against committed site-specific values or `.env`.
-- Every merge to `main` runs [release.yml](.github/workflows/release.yml), which
-  re-runs the checks, builds `homerouter-<version>.tar.gz` + `SHA256SUMS` and
-  publishes a GitHub release tagged `v0.1.<build number>` with generated notes.
-- `install.sh` always resolves `releases/latest`, so the one-liner above installs
-  whatever was last merged to `main`.
+- Work happens on feature branches; `main` is the only long-lived branch and is
+  protected — merging requires a pull request with green CI.
+- Every pull request runs [ci.yml](.github/workflows/ci.yml): ShellCheck,
+  changelog validation, template rendering, `nft --check`, `dnsmasq --test`,
+  netplan YAML parsing and a guard against committed site-specific values.
+- Releases are driven by [CHANGELOG.md](CHANGELOG.md). Add your entry under
+  `Unreleased` as part of your pull request; when you want to publish, rename
+  that heading to `## [x.y.z] - YYYY-MM-DD` and put a fresh empty `Unreleased`
+  above it.
+- On merge, [release.yml](.github/workflows/release.yml) reads the newest
+  version heading. If it has not been released yet, it builds
+  `homerouter-<version>.tar.gz` + `SHA256SUMS` and publishes a GitHub release
+  using that changelog section as the notes. Merges without a new version
+  heading simply do not release.
+- `install.sh` always resolves `releases/latest`, so the one-liner installs the
+  most recently published version.
 
 ## Disclaimer
 
