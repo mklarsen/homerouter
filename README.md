@@ -32,6 +32,10 @@ live in a git-ignored `.env`; the repository only ships templates.
 | Server segment (optional) | `SRV_IF` / `SRV_BRIDGE_IF` | `enp5s0f0np0` / `br1` — `10.10.20.1/24` |
 | Unused NICs | `UNUSED_IFS` | left unaddressed |
 
+Interfaces whose name ends in `npX` are SFP/SFP+ cage ports. They stay
+`NO-CARRIER` until a transceiver (DAC cable or optical module) is fitted, so
+check with `ethtool <if>` before blaming the configuration.
+
 ## Repository layout
 
 ```text

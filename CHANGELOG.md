@@ -12,6 +12,11 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+### Changed
+
+- Documented that the spare `enp5s0f*np*` interfaces are SFP/SFP+ cage ports,
+  which stay `NO-CARRIER` until a transceiver is fitted.
+
 ## [0.3.1] - 2026-09-04
 
 ### Fixed
