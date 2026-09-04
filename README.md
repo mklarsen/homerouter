@@ -15,6 +15,7 @@ live in a git-ignored `.env`; the repository only ships templates.
 
 - Netplan/systemd-networkd WAN with up to three static IPv4 addresses + static IPv6
 - LAN bridge combining a cable NIC and the Wi‑Fi AP
+- Optional second segment for self-hosted services, isolated from the LAN
 - hostapd AP with WPA2/WPA3 mixed mode (or WPA3‑only)
 - dnsmasq: DNS cache, DHCPv4 and IPv6 Router Advertisements (SLAAC)
 - nftables: `input`/`forward` default DROP, IPv4 NAT, commented port-forward examples
@@ -27,7 +28,8 @@ live in a git-ignored `.env`; the repository only ships templates.
 | WAN | `WAN_IF` | `enp3s0` |
 | LAN (cable) | `LAN_IF` | `enp4s0` |
 | Wi‑Fi AP | `WIFI_IF` | `wlp6s0` (added to the bridge by hostapd at runtime) |
-| LAN bridge | `BRIDGE_IF` | `br0` |
+| LAN bridge | `BRIDGE_IF` | `br0` — `10.10.10.1/24` |
+| Server segment (optional) | `SRV_IF` / `SRV_BRIDGE_IF` | `enp5s0f0np0` / `br1` — `10.10.20.1/24` |
 | Unused NICs | `UNUSED_IFS` | left unaddressed |
 
 ## Repository layout
@@ -119,6 +121,43 @@ documentation addresses as placeholders. Fill in the values from your ISP:
 
 Leave `WAN_IP4_SECONDARY` / `WAN_IP4_TERTIARY` empty if your ISP gave you a
 single address; the corresponding netplan entries are dropped automatically.
+
+## Two networks: private LAN + hosted services
+
+The default LAN is `10.10.10.0/24`. If you want to host things without exposing
+your private devices, enable the optional server segment — a separate layer‑2
+network on one of the spare NICs, not just another subnet:
+
+```bash
+SRV_ENABLE="1"
+SRV_IF="enp5s0f0np0"       # must NOT also appear in UNUSED_IFS
+SRV_BRIDGE_IF="br1"
+SRV_IP4="10.10.20.1"
+SRV_NET4="10.10.20.0/24"
+SRV_DHCP4_START="10.10.20.100"
+SRV_DHCP4_END="10.10.20.200"
+SRV_IP6="2a13:0db8:100:2::1"   # second /64 out of the same routed prefix
+SRV_TO_LAN="0"                 # 1 = servers may also open connections into the LAN
+```
+
+What you get after `sudo ./setup.sh`:
+
+| Direction | Default |
+| --- | --- |
+| LAN → internet | allowed (NAT via `WAN_IP4_PRIMARY`) |
+| Servers → internet | allowed (NAT via `WAN_IP4_SECONDARY`, so hosted services get their own public identity) |
+| LAN → servers | allowed |
+| Servers → LAN | **blocked** (`SRV_TO_LAN=1` opens it) |
+| Servers → router | DNS/DHCP/ping only, no SSH |
+| Internet → servers | blocked until you uncomment a port forward |
+
+DHCP, SLAAC and DNS are served on both segments with per-segment options, and
+the port-forwarding examples in the nftables template already point at
+`10.10.20.x`. Plug a switch into `SRV_IF` and everything on it lands in the
+server network.
+
+With `SRV_ENABLE=0` every server-segment line is rendered as a comment, so the
+files on disk always show exactly what is and is not active.
 
 ## Secrets
 

@@ -43,6 +43,13 @@ network:
       dhcp6: false
       accept-ra: false
       optional: true
+
+    # ---------------- Server / DMZ segment (optional) ----------------
+${SRV_CMT}    ${SRV_IF}:
+${SRV_CMT}      dhcp4: false
+${SRV_CMT}      dhcp6: false
+${SRV_CMT}      accept-ra: false
+${SRV_CMT}      optional: true
 #__UNUSED_IFS__
 
   bridges:
@@ -65,3 +72,23 @@ network:
       parameters:
         stp: false
         forward-delay: 0
+
+    # ---------------- Server / DMZ bridge (optional) ----------------
+${SRV_CMT}    ${SRV_BRIDGE_IF}:
+${SRV_CMT}      interfaces:
+${SRV_CMT}        - ${SRV_IF}
+${SRV_CMT}      dhcp4: false
+${SRV_CMT}      dhcp6: false
+${SRV_CMT}      accept-ra: false
+${SRV_CMT}      optional: true
+${SRV_CMT}      addresses:
+${SRV_CMT}        - ${SRV_IP4}/${SRV_PREFIXLEN4}
+${SRV_CMT}        - "${SRV_IP6}/${SRV_IP6_PREFIXLEN}"
+${SRV_CMT}      nameservers:
+${SRV_CMT}        addresses:
+${SRV_CMT}          - ${DNS4_1}
+${SRV_CMT}          - ${DNS4_2}
+${SRV_CMT}          - "${DNS6_1}"
+${SRV_CMT}      parameters:
+${SRV_CMT}        stp: false
+${SRV_CMT}        forward-delay: 0

@@ -20,6 +20,10 @@ define IP4_TER = ${NFT_IP4_TERTIARY}
 define NET4    = ${LAN_NET4}
 define NET6    = ${LAN_NET6}
 
+# Optional server / DMZ segment.
+${SRV_CMT}define SRV     = "${SRV_BRIDGE_IF}"
+${SRV_CMT}define SRVNET4 = ${SRV_NET4}
+
 # ---------------------------------------------------------------- filtering
 table inet filter {
 
@@ -62,6 +66,11 @@ table inet filter {
         # --- Trusted LAN: full access to the router (DNS, DHCP, SSH, ...) ---
         iifname $LAN accept comment "LAN -> router"
 
+        # --- Server segment: only the services it needs from the router ---
+${SRV_CMT}        iifname $SRV udp dport { 53, 67, 547 } accept comment "DHCP/DNS"
+${SRV_CMT}        iifname $SRV tcp dport 53 accept comment "DNS over TCP"
+${SRV_CMT}        iifname $SRV icmp type echo-request accept
+
         # --- DHCPv6 client replies from the ISP (kept for future use) ---
         iifname $WAN udp dport 546 udp sport 547 accept
 
@@ -85,6 +94,13 @@ table inet filter {
         # LAN -> internet (IPv4 NATed, IPv6 routed).
         iifname $LAN oifname $WAN accept comment "LAN -> WAN"
         iifname $LAN oifname $LAN accept comment "intra-LAN routing"
+
+        # --- Server / DMZ segment ---
+        # Outbound is allowed, LAN may reach it, but it may not open
+        # connections into the LAN (set SRV_TO_LAN=1 in .env to allow that).
+${SRV_CMT}        iifname $SRV oifname $WAN accept comment "servers -> WAN"
+${SRV_CMT}        iifname $LAN oifname $SRV accept comment "LAN -> servers"
+${SRV_LAN_CMT}        iifname $SRV oifname $LAN accept comment "servers -> LAN"
 
         # Traffic that matched a DNAT rule in table ip nat.
         ct status dnat accept comment "port forwards"
@@ -112,22 +128,23 @@ table ip nat {
         # ================= PORT FORWARDING EXAMPLES =================
         # Uncomment, adjust the internal host/port, then rerun setup.sh.
         # The matching forward rule is already covered by `ct status dnat accept`.
+        # The addresses below assume the server segment (10.10.20.0/24).
         #
         # --- Secondary WAN address ($IP4_SEC) -> web server ---
         # iifname $WAN ip daddr $IP4_SEC tcp dport { 80, 443 } \
-        #     dnat to 192.168.1.10 comment "web server on secondary IP"
+        #     dnat to 10.10.20.10 comment "web server on secondary IP"
         #
         # --- Secondary WAN address -> SSH on a non-standard port ---
         # iifname $WAN ip daddr $IP4_SEC tcp dport 2222 \
-        #     dnat to 192.168.1.10:22 comment "ssh on secondary IP"
+        #     dnat to 10.10.20.10:22 comment "ssh on secondary IP"
         #
         # --- Tertiary WAN address ($IP4_TER) -> game/VPN host ---
         # iifname $WAN ip daddr $IP4_TER udp dport 51820 \
-        #     dnat to 192.168.1.20:51820 comment "wireguard on tertiary IP"
+        #     dnat to 10.10.20.20:51820 comment "wireguard on tertiary IP"
         #
         # --- Whole-address 1:1 forward of the tertiary IP to one host ---
         # (pair with the matching snat rule in the postrouting chain below)
-        # iifname $WAN ip daddr $IP4_TER dnat to 192.168.1.30 comment "1:1 DMZ host"
+        # iifname $WAN ip daddr $IP4_TER dnat to 10.10.20.30 comment "1:1 DMZ host"
         # ============================================================
     }
 
@@ -135,10 +152,10 @@ table ip nat {
         type nat hook postrouting priority srcnat; policy accept;
 
         # --- 1:1 outbound counterpart for the DMZ host above ---
-        # ip saddr 192.168.1.30 oifname $WAN snat to $IP4_TER comment "1:1 DMZ host"
+        # ip saddr 10.10.20.30 oifname $WAN snat to $IP4_TER comment "1:1 DMZ host"
         #
         # --- Give the internal web server the secondary identity outbound ---
-        # ip saddr 192.168.1.10 oifname $WAN snat to $IP4_SEC
+        # ip saddr 10.10.20.10 oifname $WAN snat to $IP4_SEC
 
         # Default: everything from the LAN leaves as the primary WAN address.
         # Static SNAT is preferred over masquerade here because the WAN address
@@ -147,8 +164,13 @@ table ip nat {
             comment "NAT via primary WAN IP"
         # ip saddr $NET4 oifname $WAN counter masquerade
 
+        # Server segment leaves as the secondary WAN address, so hosted
+        # services keep one identity of their own.
+${SRV_CMT}        ip saddr $SRVNET4 oifname $WAN counter snat to $IP4_SEC \
+${SRV_CMT}            comment "NAT for the server segment"
+
         # --- Hairpin/NAT-reflection for LAN clients reaching a forwarded port
         #     via the public address (enable together with a port forward):
-        # ip saddr $NET4 ip daddr 192.168.1.10 oifname $LAN snat to ${LAN_IP4}
+        # ip saddr $NET4 ip daddr 10.10.20.10 oifname $SRV snat to ${LAN_IP4}
     }
 }

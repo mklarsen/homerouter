@@ -46,6 +46,9 @@ TEMPLATE_VARS=(
     LAN_IP4 LAN_NET4 LAN_PREFIXLEN4 LAN_NETMASK4
     LAN_DHCP4_START LAN_DHCP4_END LAN_DHCP4_LEASE
     LAN_IP6 LAN_IP6_PREFIXLEN LAN_NET6 LAN_IP6_PREFIX_EXAMPLE LAN_DOMAIN
+    SRV_IF SRV_BRIDGE_IF SRV_CMT SRV_LAN_CMT
+    SRV_IP4 SRV_NET4 SRV_PREFIXLEN4 SRV_NETMASK4 SRV_DHCP4_START SRV_DHCP4_END
+    SRV_IP6 SRV_IP6_PREFIXLEN SRV_DOMAIN
     DNS4_1 DNS4_2 DNS6_1
     NFT_IP4_SECONDARY NFT_IP4_TERTIARY
     WIFI_SSID WIFI_PASSPHRASE WIFI_COUNTRY_CODE WIFI_HW_MODE WIFI_CHANNEL WIFI_VHT
@@ -82,17 +85,34 @@ load_env() {
     : "${WAN_IP6_PREFIXLEN:=64}"
     : "${WAN_GW6:=}"
 
-    : "${LAN_IP4:=192.168.1.1}"
-    : "${LAN_NET4:=192.168.1.0/24}"
+    : "${LAN_IP4:=10.10.10.1}"
+    : "${LAN_NET4:=10.10.10.0/24}"
     : "${LAN_NETMASK4:=255.255.255.0}"
-    : "${LAN_DHCP4_START:=192.168.1.100}"
-    : "${LAN_DHCP4_END:=192.168.1.200}"
+    : "${LAN_DHCP4_START:=10.10.10.100}"
+    : "${LAN_DHCP4_END:=10.10.10.200}"
     : "${LAN_DHCP4_LEASE:=12h}"
 
     : "${LAN_NET6:=}"
     : "${LAN_IP6:=}"
     : "${LAN_IP6_PREFIXLEN:=64}"
     : "${LAN_DOMAIN:=lan}"
+
+    : "${SRV_ENABLE:=0}"
+    # Lets the self-test render both variants without touching .env.
+    if [[ -n ${SRV_ENABLE_OVERRIDE:-} ]]; then
+        SRV_ENABLE="$SRV_ENABLE_OVERRIDE"
+    fi
+    : "${SRV_IF:=}"
+    : "${SRV_BRIDGE_IF:=br1}"
+    : "${SRV_IP4:=10.10.20.1}"
+    : "${SRV_NET4:=10.10.20.0/24}"
+    : "${SRV_NETMASK4:=255.255.255.0}"
+    : "${SRV_DHCP4_START:=10.10.20.100}"
+    : "${SRV_DHCP4_END:=10.10.20.200}"
+    : "${SRV_IP6:=}"
+    : "${SRV_IP6_PREFIXLEN:=64}"
+    : "${SRV_DOMAIN:=srv}"
+    : "${SRV_TO_LAN:=0}"
 
     : "${DNS4_1:=1.1.1.1}"
     : "${DNS4_2:=8.8.8.8}"
@@ -119,6 +139,25 @@ load_env() {
     # Only used inside a commented example in nftables.conf.
     # shellcheck disable=SC2034
     LAN_IP6_PREFIX_EXAMPLE="${LAN_IP6%::*}"
+
+    SRV_PREFIXLEN4="${SRV_NET4##*/}"
+    if [[ $SRV_PREFIXLEN4 == "$SRV_NET4" ]]; then
+        SRV_PREFIXLEN4=24
+    fi
+    # Lines belonging to the optional second segment are commented out when it
+    # is disabled, which keeps every config file a single rendered template.
+    if [[ $SRV_ENABLE == "1" ]]; then
+        SRV_CMT=""
+    else
+        SRV_CMT="# "
+    fi
+    if [[ $SRV_ENABLE == "1" && $SRV_TO_LAN == "1" ]]; then
+        SRV_LAN_CMT=""
+    else
+        SRV_LAN_CMT="# "
+    fi
+
+    export SRV_ENABLE SRV_TO_LAN
 
     export UNUSED_IFS WIFI_WPA3_ONLY ENV_LOADED
     export "${TEMPLATE_VARS[@]}"

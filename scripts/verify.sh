@@ -39,6 +39,18 @@ log "Bridge membership"
 check "$LAN_IF enslaved to $BRIDGE_IF"  grep -q "master $BRIDGE_IF" <<<"$(ip link show "$LAN_IF" 2>/dev/null)"
 check "$WIFI_IF enslaved to $BRIDGE_IF" grep -q "master $BRIDGE_IF" <<<"$(ip link show "$WIFI_IF" 2>/dev/null)"
 
+if [[ $SRV_ENABLE == "1" ]]; then
+    log "Server segment"
+    check "$SRV_BRIDGE_IF has $SRV_IP4/$SRV_PREFIXLEN4" \
+        grep -q "$SRV_IP4/$SRV_PREFIXLEN4" <<<"$(ip -4 addr show "$SRV_BRIDGE_IF" 2>/dev/null)"
+    check "$SRV_IF enslaved to $SRV_BRIDGE_IF" \
+        grep -q "master $SRV_BRIDGE_IF" <<<"$(ip link show "$SRV_IF" 2>/dev/null)"
+    if [[ $SRV_TO_LAN != "1" ]]; then
+        check "servers cannot open connections into the LAN" \
+            bash -c "! nft list table inet filter | grep -q 'iifname \"$SRV_BRIDGE_IF\" oifname \"$BRIDGE_IF\" accept'"
+    fi
+fi
+
 log "Firewall"
 check "table inet filter present"     nft list table inet filter
 check "table ip nat present"          nft list table ip nat
