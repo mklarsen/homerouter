@@ -12,6 +12,18 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-04
+
+### Added
+- `DOCKER_COMPAT` for boxes that also run Docker: forward rules for `docker0`
+  and `br-*` bridges, so container traffic is not caught by the drop policy.
+  `setup.sh` detects a running Docker daemon, warns when the option is off, and
+  restarts Docker after loading the ruleset so it can reinstall its own chains.
+
+### Fixed
+
+- Wrong copyright holder in `LICENSE`.
+
 ### Changed
 
 - Documented that the spare `enp5s0f*np*` interfaces are SFP/SFP+ cage ports,

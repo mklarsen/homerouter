@@ -94,6 +94,7 @@ TEMPLATE_VARS=(
     SRV_IF SRV_BRIDGE_IF SRV_CMT SRV_LAN_CMT
     SRV_IP4 SRV_NET4 SRV_PREFIXLEN4 SRV_NETMASK4 SRV_DHCP4_START SRV_DHCP4_END
     SRV_IP6 SRV_IP6_PREFIXLEN SRV_DOMAIN
+    DOCKER_CMT
     DNS4_1 DNS4_2 DNS6_1
     NFT_IP4_SECONDARY NFT_IP4_TERTIARY
     WIFI_SSID WIFI_PASSPHRASE WIFI_COUNTRY_CODE WIFI_HW_MODE WIFI_CHANNEL WIFI_VHT
@@ -159,6 +160,11 @@ load_env() {
     : "${SRV_DOMAIN:=srv}"
     : "${SRV_TO_LAN:=0}"
 
+    : "${DOCKER_COMPAT:=0}"
+    if [[ -n ${DOCKER_COMPAT_OVERRIDE:-} ]]; then
+        DOCKER_COMPAT="$DOCKER_COMPAT_OVERRIDE"
+    fi
+
     : "${DNS4_1:=1.1.1.1}"
     : "${DNS4_2:=8.8.8.8}"
     : "${DNS6_1:=2606:4700:4700::1111}"
@@ -203,8 +209,14 @@ load_env() {
     else
         SRV_LAN_CMT="# "
     fi
+    # shellcheck disable=SC2034
+    if [[ $DOCKER_COMPAT == "1" ]]; then
+        DOCKER_CMT=""
+    else
+        DOCKER_CMT="# "
+    fi
 
-    export SRV_ENABLE SRV_TO_LAN
+    export SRV_ENABLE SRV_TO_LAN DOCKER_COMPAT
 
     export UNUSED_IFS WIFI_WPA3_ONLY ENV_LOADED
     export "${TEMPLATE_VARS[@]}"

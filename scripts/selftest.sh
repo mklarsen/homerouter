@@ -31,7 +31,9 @@ run_pass() {
     local mode="$1" out="$WORK_DIR/srv$1"
     mkdir -p "$out"
 
-    SRV_ENABLE_OVERRIDE="$mode" load_env "$ENV_SOURCE"
+    # The optional blocks are gated the same way, so exercising them together is
+    # enough to validate both rendered variants.
+    SRV_ENABLE_OVERRIDE="$mode" DOCKER_COMPAT_OVERRIDE="$mode" load_env "$ENV_SOURCE"
 
     log "Rendering templates (SRV_ENABLE=$mode)"
     render_template "$CONF_DIR/hostapd/hostapd.conf.template"   "$out/hostapd.conf"
