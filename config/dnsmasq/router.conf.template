@@ -1,0 +1,64 @@
+# /etc/dnsmasq.d/router.conf
+# Managed by https://github.com/mklarsen/homerouter -- do not edit in place.
+# Change config/dnsmasq/router.conf.template in the repo and rerun setup.sh.
+#
+# DNS cache + IPv4 DHCP + IPv6 Router Advertisements (SLAAC) for the LAN bridge.
+
+# ---------------- Binding ----------------
+# bind-dynamic keeps dnsmasq working even if the bridge appears after dnsmasq
+# starts, and never exposes the resolver on the WAN.
+interface=${BRIDGE_IF}
+bind-dynamic
+except-interface=${WAN_IF}
+no-dhcp-interface=${WAN_IF}
+port=53
+
+# ---------------- DNS ----------------
+domain-needed
+bogus-priv
+no-resolv
+no-poll
+filterwin2k
+stop-dns-rebind
+rebind-localhost-ok
+cache-size=2000
+dns-forward-max=300
+
+server=${DNS4_1}
+server=${DNS4_2}
+server=${DNS6_1}
+
+# Local naming: DHCP/SLAAC clients become <name>.${LAN_DOMAIN}
+domain=${LAN_DOMAIN}
+local=/${LAN_DOMAIN}/
+expand-hosts
+local-service
+
+# ---------------- DHCPv4 ----------------
+dhcp-authoritative
+dhcp-range=${LAN_DHCP4_START},${LAN_DHCP4_END},${LAN_NETMASK4},${LAN_DHCP4_LEASE}
+dhcp-option=option:router,${LAN_IP4}
+dhcp-option=option:dns-server,${LAN_IP4}
+dhcp-option=option:netmask,${LAN_NETMASK4}
+dhcp-option=option:domain-search,${LAN_DOMAIN}
+dhcp-lease-max=250
+dhcp-leasefile=/var/lib/misc/dnsmasq.leases
+
+# Static reservations (example):
+#dhcp-host=aa:bb:cc:dd:ee:ff,nas,192.168.1.10,infinite
+
+# ---------------- IPv6: RA + SLAAC ----------------
+# Advertise the /64 derived from the bridge address, announce this router as
+# default gateway and hand out DNS via RDNSS/stateless DHCPv6. Addresses
+# themselves are formed by the clients (SLAAC).
+enable-ra
+dhcp-range=::,constructor:${BRIDGE_IF},ra-stateless,ra-names,slaac,${LAN_IP6_PREFIXLEN},${LAN_DHCP4_LEASE}
+dhcp-option=option6:dns-server,[${LAN_IP6}]
+dhcp-option=option6:domain-search,${LAN_DOMAIN}
+# interface,priority,ra-interval,router-lifetime
+ra-param=${BRIDGE_IF},high,60,1800
+
+# ---------------- Logging ----------------
+log-facility=/var/log/dnsmasq.log
+#log-queries
+#log-dhcp

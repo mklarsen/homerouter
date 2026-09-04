@@ -1,0 +1,4 @@
+# /etc/default/hostapd
+# Managed by https://github.com/mklarsen/homerouter
+DAEMON_CONF="/etc/hostapd/hostapd.conf"
+DAEMON_OPTS=""

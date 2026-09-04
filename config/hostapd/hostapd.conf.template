@@ -1,0 +1,51 @@
+# /etc/hostapd/hostapd.conf
+# Rendered from config/hostapd/hostapd.conf.template by setup.sh (envsubst).
+# Contains the Wi-Fi passphrase -> installed as root:root 0600.
+
+interface=${WIFI_IF}
+# hostapd enslaves the AP interface into the bridge itself.
+bridge=${BRIDGE_IF}
+driver=nl80211
+ctrl_interface=/var/run/hostapd
+ctrl_interface_group=0
+
+ssid=${WIFI_SSID}
+country_code=${WIFI_COUNTRY_CODE}
+ieee80211d=1
+ieee80211h=1
+
+hw_mode=${WIFI_HW_MODE}
+channel=${WIFI_CHANNEL}
+
+# 802.11n
+ieee80211n=1
+wmm_enabled=1
+ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40][MAX-AMSDU-7935]
+
+# 802.11ac (5 GHz only; setup.sh comments these out when WIFI_VHT=0)
+ieee80211ac=${WIFI_VHT}
+vht_capab=[MAX-MPDU-11454][SHORT-GI-80]
+vht_oper_chwidth=1
+vht_oper_centr_freq_seg0_idx=42
+
+auth_algs=1
+ignore_broadcast_ssid=0
+macaddr_acl=0
+
+# WPA2-PSK + WPA3-SAE mixed mode. setup.sh rewrites wpa_key_mgmt/ieee80211w
+# when WIFI_WPA3_ONLY=1.
+wpa=2
+wpa_key_mgmt=WPA-PSK WPA-PSK-SHA256 SAE
+wpa_pairwise=CCMP
+rsn_pairwise=CCMP
+# Protected Management Frames: 1 = optional (required by SAE clients, still
+# allows legacy WPA2 clients), 2 = required.
+ieee80211w=1
+sae_require_mfp=1
+
+wpa_passphrase=${WIFI_PASSPHRASE}
+sae_password=${WIFI_PASSPHRASE}
+
+# Let wireless clients talk to each other (set to 1 to isolate).
+ap_isolate=0
+disassoc_low_ack=1

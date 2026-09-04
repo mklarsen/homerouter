@@ -1,0 +1,4 @@
+# Local secrets / rendered artifacts
+.env
+*.rendered
+*.bak

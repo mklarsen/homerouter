@@ -1,0 +1,154 @@
+#!/usr/sbin/nft -f
+#
+# /etc/nftables.conf
+# Managed by https://github.com/mklarsen/homerouter -- do not edit in place.
+# Change config/nftables/nftables.conf.template in the repo and rerun setup.sh.
+#
+# Model: stateful router. input/forward default DROP, output ACCEPT.
+#        IPv4 is NATed behind the primary WAN address, IPv6 is routed (no NAT).
+
+flush ruleset
+
+# ---------------------------------------------------------------- definitions
+define WAN     = "${WAN_IF}"
+define LAN     = "${BRIDGE_IF}"
+
+define IP4_PRI = ${WAN_IP4_PRIMARY}
+define IP4_SEC = ${NFT_IP4_SECONDARY}
+define IP4_TER = ${NFT_IP4_TERTIARY}
+
+define NET4    = ${LAN_NET4}
+define NET6    = ${LAN_NET6}
+
+# ---------------------------------------------------------------- filtering
+table inet filter {
+
+    # Bogon / martian sources that must never arrive from the WAN.
+    set bogons4 {
+        type ipv4_addr
+        flags interval
+        elements = {
+            0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8,
+            169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24,
+            192.168.0.0/16, 198.18.0.0/15, 198.51.100.0/24,
+            203.0.113.0/24, 224.0.0.0/4, 240.0.0.0/4
+        }
+    }
+
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        iif lo accept comment "loopback"
+        ct state vmap { established : accept, related : accept, invalid : drop }
+
+        # --- ICMPv6 is mandatory for IPv6 to work at all (NDP, PMTUD) ---
+        icmpv6 type {
+            destination-unreachable, packet-too-big, time-exceeded,
+            parameter-problem, mld-listener-query, mld-listener-report,
+            mld-listener-done, nd-router-solicit, nd-router-advert,
+            nd-neighbor-solicit, nd-neighbor-advert, nd-redirect
+        } accept comment "ICMPv6 / NDP"
+        icmpv6 type echo-request limit rate 20/second accept
+
+        # --- ICMPv4 ---
+        icmp type {
+            destination-unreachable, time-exceeded, parameter-problem
+        } accept
+        icmp type echo-request limit rate 20/second accept
+
+        # --- Anti-spoofing on the WAN side ---
+        iifname $WAN ip saddr @bogons4 counter drop comment "bogon source"
+
+        # --- Trusted LAN: full access to the router (DNS, DHCP, SSH, ...) ---
+        iifname $LAN accept comment "LAN -> router"
+
+        # --- DHCPv6 client replies from the ISP (kept for future use) ---
+        iifname $WAN udp dport 546 udp sport 547 accept
+
+        # --- Management from the WAN is closed by default. Example:
+        # iifname $WAN ip daddr $IP4_PRI tcp dport 22 ct state new \
+        #     limit rate 10/minute accept comment "SSH from internet"
+
+        limit rate 5/minute burst 10 packets \
+            log prefix "nft input drop: " level info
+        counter comment "input policy drop"
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+
+        ct state vmap { established : accept, related : accept, invalid : drop }
+
+        # Clamp TCP MSS to the path MTU (PPPoE / tunnelled uplinks).
+        tcp flags syn tcp option maxseg size set rt mtu
+
+        # LAN -> internet (IPv4 NATed, IPv6 routed).
+        iifname $LAN oifname $WAN accept comment "LAN -> WAN"
+        iifname $LAN oifname $LAN accept comment "intra-LAN routing"
+
+        # Traffic that matched a DNAT rule in table ip nat.
+        ct status dnat accept comment "port forwards"
+
+        # --- IPv6 inbound to the routed prefix: closed by default. Examples:
+        # iifname $WAN oifname $LAN ip6 daddr ${LAN_IP6_PREFIX_EXAMPLE}::10 tcp dport { 80, 443 } accept
+        # iifname $WAN oifname $LAN ip6 daddr $NET6 icmpv6 type echo-request accept
+
+        limit rate 5/minute burst 10 packets \
+            log prefix "nft forward drop: " level info
+        counter comment "forward policy drop"
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}
+
+# ---------------------------------------------------------------- IPv4 NAT
+table ip nat {
+
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+
+        # ================= PORT FORWARDING EXAMPLES =================
+        # Uncomment, adjust the internal host/port, then rerun setup.sh.
+        # The matching forward rule is already covered by `ct status dnat accept`.
+        #
+        # --- Secondary WAN address ($IP4_SEC) -> web server ---
+        # iifname $WAN ip daddr $IP4_SEC tcp dport { 80, 443 } \
+        #     dnat to 192.168.1.10 comment "web server on secondary IP"
+        #
+        # --- Secondary WAN address -> SSH on a non-standard port ---
+        # iifname $WAN ip daddr $IP4_SEC tcp dport 2222 \
+        #     dnat to 192.168.1.10:22 comment "ssh on secondary IP"
+        #
+        # --- Tertiary WAN address ($IP4_TER) -> game/VPN host ---
+        # iifname $WAN ip daddr $IP4_TER udp dport 51820 \
+        #     dnat to 192.168.1.20:51820 comment "wireguard on tertiary IP"
+        #
+        # --- Whole-address 1:1 forward of the tertiary IP to one host ---
+        # (pair with the matching snat rule in the postrouting chain below)
+        # iifname $WAN ip daddr $IP4_TER dnat to 192.168.1.30 comment "1:1 DMZ host"
+        # ============================================================
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+
+        # --- 1:1 outbound counterpart for the DMZ host above ---
+        # ip saddr 192.168.1.30 oifname $WAN snat to $IP4_TER comment "1:1 DMZ host"
+        #
+        # --- Give the internal web server the secondary identity outbound ---
+        # ip saddr 192.168.1.10 oifname $WAN snat to $IP4_SEC
+
+        # Default: everything from the LAN leaves as the primary WAN address.
+        # Static SNAT is preferred over masquerade here because the WAN address
+        # is fixed; swap the two lines if you ever move to DHCP/PPPoE.
+        ip saddr $NET4 oifname $WAN counter snat to $IP4_PRI \
+            comment "NAT via primary WAN IP"
+        # ip saddr $NET4 oifname $WAN counter masquerade
+
+        # --- Hairpin/NAT-reflection for LAN clients reaching a forwarded port
+        #     via the public address (enable together with a port forward):
+        # ip saddr $NET4 ip daddr 192.168.1.10 oifname $LAN snat to ${LAN_IP4}
+    }
+}

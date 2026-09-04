@@ -1,0 +1,67 @@
+# /etc/netplan/01-router.yaml
+# Managed by https://github.com/mklarsen/homerouter -- edits here are overwritten
+# by setup.sh. Change config/netplan/01-router.yaml.template in the repo instead.
+#
+# Install with mode 0600 root:root, otherwise netplan emits a permission warning.
+#
+# NOTE: the Wi-Fi interface is intentionally NOT listed as a bridge member.
+# hostapd attaches the AP interface to the bridge itself (see `bridge=` in
+# hostapd.conf); pre-enslaving it via networkd makes hostapd fail to start.
+network:
+  version: 2
+  renderer: networkd
+
+  ethernets:
+    # ---------------- WAN ----------------
+    ${WAN_IF}:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+      optional: false
+      addresses:
+        - ${WAN_IP4_PRIMARY}/${WAN_IP4_PREFIXLEN}
+        - ${WAN_IP4_SECONDARY}/${WAN_IP4_PREFIXLEN}
+        - ${WAN_IP4_TERTIARY}/${WAN_IP4_PREFIXLEN}
+        - "${WAN_IP6}/${WAN_IP6_PREFIXLEN}"
+      routes:
+        - to: default
+          via: ${WAN_GW4}
+          metric: 100
+        - to: "::/0"
+          via: "${WAN_GW6}"
+          on-link: true
+          metric: 100
+      nameservers:
+        addresses:
+          - ${DNS4_1}
+          - ${DNS4_2}
+          - "${DNS6_1}"
+
+    # ---------------- LAN (cable) ----------------
+    ${LAN_IF}:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+      optional: true
+#__UNUSED_IFS__
+
+  bridges:
+    # ---------------- LAN bridge (cable + Wi-Fi) ----------------
+    ${BRIDGE_IF}:
+      interfaces:
+        - ${LAN_IF}
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+      optional: true
+      addresses:
+        - ${LAN_IP4}/${LAN_PREFIXLEN4}
+        - "${LAN_IP6}/${LAN_IP6_PREFIXLEN}"
+      nameservers:
+        addresses:
+          - ${DNS4_1}
+          - ${DNS4_2}
+          - "${DNS6_1}"
+      parameters:
+        stp: false
+        forward-delay: 0
