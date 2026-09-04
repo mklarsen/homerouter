@@ -18,8 +18,6 @@ DRY_RUN=0
 APPLY=1
 VERIFY_ONLY=0
 
-PACKAGES=(hostapd dnsmasq nftables iw rfkill bridge-utils ethtool gettext-base iproute2 dnsutils)
-
 BACKUP_DIR="/var/backups/homerouter/$(date +%Y%m%d-%H%M%S)"
 RENDER_DIR=""
 
@@ -114,24 +112,16 @@ fi
 ok "Wi-Fi settings validated (SSID: $WIFI_SSID, ${WIFI_HW_MODE}/ch${WIFI_CHANNEL})"
 
 # ------------------------------------------------------------ packages
-log "Installing packages"
+log "Checking packages"
 
-missing=()
-for pkg in "${PACKAGES[@]}"; do
-    dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "ok installed" || missing+=("$pkg")
-done
-
-if (( ${#missing[@]} == 0 )); then
-    ok "all packages already installed"
-elif [[ $DRY_RUN -eq 1 ]]; then
-    warn "would install: ${missing[*]} (dry-run)"
-else
-    info "installing: ${missing[*]}"
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
-    apt-get install -y -qq "${missing[@]}"
-    ok "packages installed"
+# install.sh already installs these while the box is guaranteed to be online.
+# This is the safety net for source checkouts -- and it needs internet, which a
+# half-reconfigured router may no longer have.
+mapfile -t missing_pkgs < <(missing_packages)
+if (( ${#missing_pkgs[@]} > 0 )) && [[ $DRY_RUN -eq 0 ]]; then
+    warn "installing ${#missing_pkgs[@]} missing package(s) -- requires internet access"
 fi
+install_packages
 
 # ------------------------------------------------------------ render hostapd
 log "Rendering configuration"

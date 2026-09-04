@@ -11,6 +11,7 @@
 #   --version <tag>   install a specific release instead of the latest
 #   --dir <path>      install directory (default: /opt/homerouter)
 #   --run             run setup.sh afterwards (requires a filled-in .env)
+#   --no-packages     do not install the apt packages the router needs
 #   --no-verify       skip checksum verification (not recommended)
 #
 set -Eeuo pipefail
@@ -20,6 +21,7 @@ INSTALL_DIR="/opt/homerouter"
 VERSION="latest"
 RUN_SETUP=0
 VERIFY=1
+PACKAGES_WANTED=1
 
 say()  { printf '==> %s\n' "$*"; }
 warn() { printf 'warn: %s\n' "$*" >&2; }
@@ -30,8 +32,9 @@ while [[ $# -gt 0 ]]; do
         --version) VERSION="${2:?--version needs a tag}"; shift 2 ;;
         --dir)     INSTALL_DIR="${2:?--dir needs a path}"; shift 2 ;;
         --run)     RUN_SETUP=1; shift ;;
+        --no-packages) PACKAGES_WANTED=0; shift ;;
         --no-verify) VERIFY=0; shift ;;
-        -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)         die "unknown argument: $1" ;;
     esac
 done
@@ -83,6 +86,17 @@ cp -a "$SRC_DIR/." "$INSTALL_DIR/"
 chown -R root:root "$INSTALL_DIR"
 chmod 755 "$INSTALL_DIR"/setup.sh "$INSTALL_DIR"/scripts/*.sh
 
+if [[ $PACKAGES_WANTED -eq 1 ]]; then
+    # Done here, not in setup.sh: this script only ever runs with a working
+    # internet connection, while setup.sh may run after the uplink is gone.
+    say "Installing runtime packages"
+    # shellcheck source=scripts/lib.sh
+    source "$INSTALL_DIR/scripts/lib.sh"
+    install_packages
+else
+    warn "skipping package installation (--no-packages)"
+fi
+
 if [[ ! -f "$INSTALL_DIR/.env" ]]; then
     install -m 600 "$INSTALL_DIR/.env.example" "$INSTALL_DIR/.env"
     say "Created $INSTALL_DIR/.env from the example -- fill it in before deploying"
@@ -109,4 +123,6 @@ Next:
   sudo \$EDITOR $INSTALL_DIR/.env      # ISP addresses, LAN subnet, Wi-Fi
   sudo $INSTALL_DIR/setup.sh --dry-run
   sudo $INSTALL_DIR/setup.sh
+
+The packages are installed, so setup.sh no longer needs internet access.
 EOF
