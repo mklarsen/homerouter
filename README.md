@@ -1,5 +1,9 @@
 # homerouter
 
+[![ci](https://github.com/mklarsen/homerouter/actions/workflows/ci.yml/badge.svg)](https://github.com/mklarsen/homerouter/actions/workflows/ci.yml)
+[![release](https://github.com/mklarsen/homerouter/actions/workflows/release.yml/badge.svg)](https://github.com/mklarsen/homerouter/actions/workflows/release.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 Turn a small x86 box with multiple NICs into an Ubuntu 24.04 LTS router: static
 IPv4/IPv6 WAN, bridged Wi‑Fi access point, DHCP + SLAAC for LAN clients and a
 stateful nftables firewall — installed by one idempotent Bash script.
@@ -40,13 +44,43 @@ live in a git-ignored `.env`; the repository only ships templates.
 │   └── systemd/resolved-no-stub.conf        # free up port 53 for dnsmasq
 ├── scripts/
 │   ├── lib.sh                               # helpers, .env loading, rendering
-│   └── verify.sh                            # post-install health check
+│   ├── selftest.sh                           # render + validate, no system changes
+│   └── verify.sh                             # post-install health check
 ├── .env.example
+├── install.sh                                # bootstrap: fetch latest release
 ├── setup.sh
 └── LICENSE
 ```
 
-## Usage
+## Install (latest release)
+
+One-liner on a fresh Ubuntu 24.04 box — downloads the newest release, verifies
+its SHA-256 checksum and unpacks it to `/opt/homerouter`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mklarsen/homerouter/main/install.sh | sudo bash
+```
+
+Then configure and deploy:
+
+```bash
+sudo nano /opt/homerouter/.env      # ISP addresses, LAN subnet, Wi-Fi
+sudo /opt/homerouter/setup.sh --dry-run
+sudo /opt/homerouter/setup.sh
+```
+
+Options are passed after `bash -s --`:
+
+```bash
+# pin a version, install elsewhere, and run setup.sh right away
+curl -fsSL https://raw.githubusercontent.com/mklarsen/homerouter/main/install.sh \
+  | sudo bash -s -- --version v0.1.7 --dir /opt/homerouter --run
+```
+
+Rerunning the one-liner upgrades an existing install in place; your `.env` is
+never overwritten.
+
+## Install (from source)
 
 ```bash
 git clone https://github.com/mklarsen/homerouter.git
@@ -105,6 +139,24 @@ sudo ./scripts/verify.sh
 
 Checks forwarding sysctls, addressing, bridge membership, nftables ruleset,
 service state and outbound IPv4/IPv6 reachability.
+
+To validate the configuration without touching the system (also what CI runs):
+
+```bash
+./scripts/selftest.sh
+```
+
+## Development & releases
+
+- Work happens on feature branches; `main` is the only long-lived branch.
+- Every pull request against `main` runs [ci.yml](.github/workflows/ci.yml):
+  ShellCheck, template rendering, `nft --check`, `dnsmasq --test`, netplan YAML
+  parsing and a guard against committed site-specific values or `.env`.
+- Every merge to `main` runs [release.yml](.github/workflows/release.yml), which
+  re-runs the checks, builds `homerouter-<version>.tar.gz` + `SHA256SUMS` and
+  publishes a GitHub release tagged `v0.1.<build number>` with generated notes.
+- `install.sh` always resolves `releases/latest`, so the one-liner above installs
+  whatever was last merged to `main`.
 
 ## Disclaimer
 
