@@ -41,7 +41,17 @@ require_cmd() {
 # Everything the router needs at runtime. Installed by install.sh while the box
 # still has its original internet connection, because setup.sh may well run
 # after the uplink has been reconfigured.
-PACKAGES=(hostapd dnsmasq nftables iw rfkill bridge-utils ethtool gettext-base iproute2 dnsutils)
+PACKAGES=(hostapd dnsmasq nftables iw rfkill bridge-utils ethtool gettext-base iproute2)
+
+# dig lives in bind9-dnsutils; `dnsutils` is only a transitional package on
+# recent releases, so asking dpkg about it always reports "not installed".
+dns_tools_package() {
+    if apt-cache show bind9-dnsutils >/dev/null 2>&1; then
+        printf 'bind9-dnsutils'
+    else
+        printf 'dnsutils'
+    fi
+}
 
 # missing_packages -- prints the packages that are not installed yet.
 missing_packages() {
@@ -51,6 +61,7 @@ missing_packages() {
             printf '%s\n' "$pkg"
         fi
     done
+    command -v dig >/dev/null 2>&1 || dns_tools_package
 }
 
 # install_packages -- idempotent; honours DRY_RUN.
