@@ -12,6 +12,14 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-04
+
+### Fixed
+
+- A broken third-party apt repository no longer aborts the installation:
+  `apt-get update` failures are reported as a warning and the install continues
+  with the package lists already on disk.
+
 ## [0.3.0] - 2026-09-04
 
 ### Added
