@@ -122,3 +122,6 @@ What an operator taking over the running box needs:
 
 Open an issue with the output of `sudo ./scripts/verify.sh` and the relevant
 `journalctl` lines. Redact your public addresses and passphrase first.
+
+If you work through an AI coding agent, [AGENTS.md](AGENTS.md) is the equivalent
+briefing for it.

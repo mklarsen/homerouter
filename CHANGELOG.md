@@ -16,6 +16,8 @@ as the release notes. Merges without a new version heading do not release.
 
 - `CONTRIBUTING.md` covering the development workflow, release process and an
   operational handover section for whoever runs the box.
+- `AGENTS.md`, a handover for AI coding agents: invariants, known pitfalls and
+  the current state of the project.
 
 ## [0.2.0] - 2026-09-04
 
