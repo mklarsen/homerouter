@@ -105,6 +105,15 @@ ${SRV_LAN_CMT}        iifname $SRV oifname $LAN accept comment "servers -> LAN"
         # Traffic that matched a DNAT rule in table ip nat.
         ct status dnat accept comment "port forwards"
 
+        # --- Docker (DOCKER_COMPAT=1) ---
+        # Container traffic reaches this chain too, and would hit the drop
+        # policy. Docker keeps its own chains, which still filter what is
+        # actually published, so accepting here does not open the containers up.
+${DOCKER_CMT}        iifname "docker0" accept comment "docker bridge"
+${DOCKER_CMT}        oifname "docker0" accept comment "docker bridge"
+${DOCKER_CMT}        iifname "br-*" accept comment "docker user networks"
+${DOCKER_CMT}        oifname "br-*" accept comment "docker user networks"
+
         # --- IPv6 inbound to the routed prefix: closed by default. Examples:
         # iifname $WAN oifname $LAN ip6 daddr ${LAN_IP6_PREFIX_EXAMPLE}::10 tcp dport { 80, 443 } accept
         # iifname $WAN oifname $LAN ip6 daddr $NET6 icmpv6 type echo-request accept

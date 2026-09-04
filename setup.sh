@@ -61,6 +61,14 @@ if systemctl is-active --quiet NetworkManager 2>/dev/null; then
     warn "Consider: systemctl disable --now NetworkManager"
 fi
 
+DOCKER_ACTIVE=0
+if systemctl is-active --quiet docker 2>/dev/null; then
+    DOCKER_ACTIVE=1
+    warn "Docker is running. /etc/nftables.conf starts with 'flush ruleset', which"
+    warn "also removes the rules Docker installs, so Docker is restarted afterwards"
+    warn "to recreate them -- running containers will bounce."
+fi
+
 # ------------------------------------------------------------ configuration
 log "Loading configuration"
 
@@ -110,6 +118,13 @@ if [[ $WIFI_SSID == *$'\n'* || ${#WIFI_SSID} -gt 32 ]]; then
     die "WIFI_SSID must be a single line of at most 32 characters"
 fi
 ok "Wi-Fi settings validated (SSID: $WIFI_SSID, ${WIFI_HW_MODE}/ch${WIFI_CHANNEL})"
+
+if [[ $DOCKER_ACTIVE -eq 1 && $DOCKER_COMPAT != "1" ]]; then
+    warn "Docker is running but DOCKER_COMPAT is not 1 -- the forward chain will"
+    warn "drop container traffic. Set DOCKER_COMPAT=\"1\" in .env unless you want that."
+elif [[ $DOCKER_COMPAT == "1" ]]; then
+    ok "Docker compatibility rules enabled"
+fi
 
 # ------------------------------------------------------------ packages
 log "Checking packages"
@@ -268,6 +283,11 @@ systemctl enable nftables >/dev/null 2>&1 || true
 if [[ $CHANGED_NFT -eq 1 ]] || ! nft list table inet filter >/dev/null 2>&1; then
     nft --file /etc/nftables.conf
     ok "nftables ruleset loaded"
+    if [[ $DOCKER_ACTIVE -eq 1 ]]; then
+        # Docker's chains were just flushed away; restarting rebuilds them.
+        systemctl restart docker
+        ok "docker restarted to reinstall its firewall rules"
+    fi
 else
     ok "nftables ruleset already current"
 fi
