@@ -25,6 +25,9 @@ jobs:
       - name: ShellCheck
         run: shellcheck -x setup.sh install.sh scripts/*.sh
 
+      - name: Validate CHANGELOG.md
+        run: ./scripts/changelog.sh check
+
       - name: Render and validate configuration
         run: sudo -E ./scripts/selftest.sh
 

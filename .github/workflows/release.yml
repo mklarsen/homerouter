@@ -34,9 +34,22 @@ jobs:
 
       - name: Determine version
         id: version
-        run: echo "version=v0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ./scripts/changelog.sh check
+          version="v$(./scripts/changelog.sh version)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "$version" >/dev/null 2>&1; then
+            echo "release=0" >> "$GITHUB_OUTPUT"
+            echo "::notice::$version is already released -- add a new version heading to CHANGELOG.md to publish one"
+          else
+            echo "release=1" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build tarball
+        if: steps.version.outputs.release == '1'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -53,17 +66,16 @@ jobs:
           cat SHA256SUMS
 
       - name: Publish release
+        if: steps.version.outputs.release == '1'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          if gh release view "$VERSION" >/dev/null 2>&1; then
-            echo "release $VERSION already exists"
-            exit 0
-          fi
+          ./scripts/changelog.sh notes > release-notes.md
+          cat release-notes.md
           gh release create "$VERSION" \
             "dist/homerouter-${VERSION}.tar.gz" dist/SHA256SUMS \
-            --target "${{ github.sha }}" \
+            --target "$(git rev-parse HEAD)" \
             --title "homerouter $VERSION" \
-            --generate-notes
+            --notes-file release-notes.md
