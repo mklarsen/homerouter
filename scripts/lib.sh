@@ -146,11 +146,13 @@ load_env() {
     fi
     # Lines belonging to the optional second segment are commented out when it
     # is disabled, which keeps every config file a single rendered template.
+    # shellcheck disable=SC2034  # exported through TEMPLATE_VARS
     if [[ $SRV_ENABLE == "1" ]]; then
         SRV_CMT=""
     else
         SRV_CMT="# "
     fi
+    # shellcheck disable=SC2034
     if [[ $SRV_ENABLE == "1" && $SRV_TO_LAN == "1" ]]; then
         SRV_LAN_CMT=""
     else
