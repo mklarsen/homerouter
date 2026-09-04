@@ -30,7 +30,9 @@ jobs:
 
       - name: Ensure no site-specific values are committed
         run: |
-          if git ls-files -z | xargs -0 grep -nEI '(^|[^0-9.])(80\.248\.139\.[0-9]+)|2a13:e7' ; then
+          # This file is excluded: it necessarily contains the patterns itself.
+          if git ls-files -z ':!.github/workflows/ci.yml' \
+            | xargs -0 grep -nEI '80\.248\.139\.[0-9]+|2a13:e7'; then
             echo "::error::real ISP addresses found in tracked files"
             exit 1
           fi
