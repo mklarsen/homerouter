@@ -12,10 +12,19 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-04
+
 ### Added
 
 - `CONTRIBUTING.md` covering the development workflow, release process and an
   operational handover section for whoever runs the box.
+
+### Changed
+
+- `install.sh` installs the runtime packages, since it always runs while the box
+  still has its original internet connection. `setup.sh` keeps the same logic as
+  a fallback, so a deploy after the uplink has been reconfigured no longer
+  depends on `apt`. Opt out with `--no-packages`.
 
 ## [0.2.0] - 2026-09-04
 

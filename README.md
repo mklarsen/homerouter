@@ -59,7 +59,8 @@ live in a git-ignored `.env`; the repository only ships templates.
 ## Install (latest release)
 
 One-liner on a fresh Ubuntu 24.04 box — downloads the newest release, verifies
-its SHA-256 checksum and unpacks it to `/opt/homerouter`:
+its SHA-256 checksum, unpacks it to `/opt/homerouter` and installs the packages
+the router needs (hostapd, dnsmasq, nftables and friends):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mklarsen/homerouter/main/install.sh | sudo bash

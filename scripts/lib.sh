@@ -38,6 +38,43 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
 
+# Everything the router needs at runtime. Installed by install.sh while the box
+# still has its original internet connection, because setup.sh may well run
+# after the uplink has been reconfigured.
+PACKAGES=(hostapd dnsmasq nftables iw rfkill bridge-utils ethtool gettext-base iproute2 dnsutils)
+
+# missing_packages -- prints the packages that are not installed yet.
+missing_packages() {
+    local pkg
+    for pkg in "${PACKAGES[@]}"; do
+        if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "ok installed"; then
+            printf '%s\n' "$pkg"
+        fi
+    done
+}
+
+# install_packages -- idempotent; honours DRY_RUN.
+install_packages() {
+    local missing=()
+    mapfile -t missing < <(missing_packages)
+
+    if (( ${#missing[@]} == 0 )); then
+        ok "all packages already installed"
+        return 0
+    fi
+
+    if [[ ${DRY_RUN:-0} -eq 1 ]]; then
+        warn "would install: ${missing[*]} (dry-run)"
+        return 0
+    fi
+
+    info "installing: ${missing[*]}"
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq "${missing[@]}"
+    ok "packages installed"
+}
+
 # Every variable substituted into config/*.template.
 TEMPLATE_VARS=(
     WAN_IF LAN_IF WIFI_IF BRIDGE_IF
