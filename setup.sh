@@ -81,6 +81,19 @@ for ifname in "$WAN_IF" "$LAN_IF" "$WIFI_IF"; do
     fi
 done
 
+if [[ $SRV_ENABLE == "1" ]]; then
+    [[ -n $SRV_IF ]] || die "SRV_ENABLE=1 but SRV_IF is empty"
+    for taken in $UNUSED_IFS; do
+        [[ $taken == "$SRV_IF" ]] && die "SRV_IF ($SRV_IF) must not also be listed in UNUSED_IFS"
+    done
+    if ip link show "$SRV_IF" >/dev/null 2>&1; then
+        ok "interface present: $SRV_IF (server segment)"
+    else
+        warn "interface missing: $SRV_IF -- server segment will not come up"
+    fi
+    ok "server segment enabled: $SRV_IP4/$SRV_PREFIXLEN4 on $SRV_BRIDGE_IF"
+fi
+
 for required in WAN_IP4_PRIMARY WAN_GW4 LAN_IP4 LAN_NET4; do
     [[ -n ${!required} ]] || die "$required is not set -- see .env.example"
 done

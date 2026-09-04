@@ -8,6 +8,7 @@
 # bind-dynamic keeps dnsmasq working even if the bridge appears after dnsmasq
 # starts, and never exposes the resolver on the WAN.
 interface=${BRIDGE_IF}
+${SRV_CMT}interface=${SRV_BRIDGE_IF}
 bind-dynamic
 except-interface=${WAN_IF}
 no-dhcp-interface=${WAN_IF}
@@ -35,28 +36,43 @@ expand-hosts
 local-service
 
 # ---------------- DHCPv4 ----------------
+# Every range is tagged so its options never leak into the other segment.
 dhcp-authoritative
-dhcp-range=${LAN_DHCP4_START},${LAN_DHCP4_END},${LAN_NETMASK4},${LAN_DHCP4_LEASE}
-dhcp-option=option:router,${LAN_IP4}
-dhcp-option=option:dns-server,${LAN_IP4}
-dhcp-option=option:netmask,${LAN_NETMASK4}
-dhcp-option=option:domain-search,${LAN_DOMAIN}
+dhcp-range=set:lan,${LAN_DHCP4_START},${LAN_DHCP4_END},${LAN_NETMASK4},${LAN_DHCP4_LEASE}
+dhcp-option=tag:lan,option:router,${LAN_IP4}
+dhcp-option=tag:lan,option:dns-server,${LAN_IP4}
+dhcp-option=tag:lan,option:netmask,${LAN_NETMASK4}
+dhcp-option=tag:lan,option:domain-search,${LAN_DOMAIN}
 dhcp-lease-max=250
 dhcp-leasefile=/var/lib/misc/dnsmasq.leases
 
 # Static reservations (example):
-#dhcp-host=aa:bb:cc:dd:ee:ff,nas,192.168.1.10,infinite
+#dhcp-host=aa:bb:cc:dd:ee:ff,nas,10.10.10.10,infinite
+
+# ---------------- DHCPv4: server / DMZ segment (optional) ----------------
+# Tagged so that the options below only apply to this segment.
+${SRV_CMT}dhcp-range=set:srv,${SRV_DHCP4_START},${SRV_DHCP4_END},${SRV_NETMASK4},${LAN_DHCP4_LEASE}
+${SRV_CMT}dhcp-option=tag:srv,option:router,${SRV_IP4}
+${SRV_CMT}dhcp-option=tag:srv,option:dns-server,${SRV_IP4}
+${SRV_CMT}dhcp-option=tag:srv,option:netmask,${SRV_NETMASK4}
+${SRV_CMT}dhcp-option=tag:srv,option:domain-search,${SRV_DOMAIN}
 
 # ---------------- IPv6: RA + SLAAC ----------------
 # Advertise the /64 derived from the bridge address, announce this router as
 # default gateway and hand out DNS via RDNSS/stateless DHCPv6. Addresses
 # themselves are formed by the clients (SLAAC).
 enable-ra
-dhcp-range=::,constructor:${BRIDGE_IF},ra-stateless,ra-names,slaac,${LAN_IP6_PREFIXLEN},${LAN_DHCP4_LEASE}
-dhcp-option=option6:dns-server,[${LAN_IP6}]
-dhcp-option=option6:domain-search,${LAN_DOMAIN}
+dhcp-range=set:lan6,::,constructor:${BRIDGE_IF},ra-stateless,ra-names,slaac,${LAN_IP6_PREFIXLEN},${LAN_DHCP4_LEASE}
+dhcp-option=tag:lan6,option6:dns-server,[${LAN_IP6}]
+dhcp-option=tag:lan6,option6:domain-search,${LAN_DOMAIN}
 # interface,priority,ra-interval,router-lifetime
 ra-param=${BRIDGE_IF},high,60,1800
+
+# ---------------- IPv6 RA for the server / DMZ segment (optional) ----------
+${SRV_CMT}dhcp-range=set:srv6,::,constructor:${SRV_BRIDGE_IF},ra-stateless,ra-names,slaac,${SRV_IP6_PREFIXLEN},${LAN_DHCP4_LEASE}
+${SRV_CMT}dhcp-option=tag:srv6,option6:dns-server,[${SRV_IP6}]
+${SRV_CMT}dhcp-option=tag:srv6,option6:domain-search,${SRV_DOMAIN}
+${SRV_CMT}ra-param=${SRV_BRIDGE_IF},high,60,1800
 
 # ---------------- Logging ----------------
 log-facility=/var/log/dnsmasq.log
