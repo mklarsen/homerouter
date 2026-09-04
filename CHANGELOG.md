@@ -12,6 +12,14 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-04
+
+### Fixed
+
+- `dnsutils` was reported as missing on every run: it is a transitional package
+  on recent Ubuntu releases, so dpkg never considers it installed. The presence
+  of `dig` is checked instead, and `bind9-dnsutils` is installed when available.
+
 ## [0.4.0] - 2026-09-04
 
 ### Added
