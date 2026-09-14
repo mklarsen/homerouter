@@ -192,8 +192,12 @@ load_env() {
     : "${WIFI_VHT:=1}"
     : "${WIFI_WPA3_ONLY:=0}"
 
+    # These values are consumed by the systemd link templates.
+    # shellcheck disable=SC2034
     if [[ -n $WAN_MAC ]]; then WAN_MAC_CMT=""; else WAN_MAC_CMT="# "; fi
+    # shellcheck disable=SC2034
     if [[ -n $LAN_MAC ]]; then LAN_MAC_CMT=""; else LAN_MAC_CMT="# "; fi
+    # shellcheck disable=SC2034
     if [[ -n $WIFI_MAC ]]; then WIFI_MAC_CMT=""; else WIFI_MAC_CMT="# "; fi
 
     # Derived values; consumed by render_template via TEMPLATE_VARS.
