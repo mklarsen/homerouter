@@ -1,0 +1,6 @@
+# Managed by homerouter setup.sh. Match the LAN NIC by MAC.
+${LAN_MAC_CMT}[Match]
+${LAN_MAC_CMT}MACAddress=${LAN_MAC}
+${LAN_MAC_CMT}
+${LAN_MAC_CMT}[Link]
+${LAN_MAC_CMT}Name=${LAN_IF}

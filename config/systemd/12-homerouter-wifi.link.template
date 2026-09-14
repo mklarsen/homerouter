@@ -1,0 +1,6 @@
+# Managed by homerouter setup.sh. Match the Wi-Fi NIC by MAC.
+${WIFI_MAC_CMT}[Match]
+${WIFI_MAC_CMT}MACAddress=${WIFI_MAC}
+${WIFI_MAC_CMT}
+${WIFI_MAC_CMT}[Link]
+${WIFI_MAC_CMT}Name=${WIFI_IF}

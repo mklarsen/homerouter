@@ -25,9 +25,9 @@ live in a git-ignored `.env`; the repository only ships templates.
 
 | Role | Variable | Example |
 | --- | --- | --- |
-| WAN | `WAN_IF` | `enp3s0` |
-| LAN (cable) | `LAN_IF` | `enp4s0` |
-| Wi‑Fi AP | `WIFI_IF` | `wlp6s0` (added to the bridge by hostapd at runtime) |
+| WAN | `WAN_IF` / `WAN_MAC` | `enp3s0` |
+| LAN (cable) | `LAN_IF` / `LAN_MAC` | `enp4s0` |
+| Wi‑Fi AP | `WIFI_IF` / `WIFI_MAC` | `wlp6s0` (added to the bridge by hostapd at runtime) |
 | LAN bridge | `BRIDGE_IF` | `br0` — `10.10.10.1/24` |
 | Server segment (optional) | `SRV_IF` / `SRV_BRIDGE_IF` | `enp5s0f0np0` / `br1` — `10.10.20.1/24` |
 | Unused NICs | `UNUSED_IFS` | left unaddressed |
@@ -35,6 +35,10 @@ live in a git-ignored `.env`; the repository only ships templates.
 Interfaces whose name ends in `npX` are SFP/SFP+ cage ports. They stay
 `NO-CARRIER` until a transceiver (DAC cable or optical module) is fitted, so
 check with `ethtool <if>` before blaming the configuration.
+
+Set `WAN_MAC`, `LAN_MAC`, and `WIFI_MAC` in `.env` to persist these role names
+across firmware and PCI enumeration changes. `setup.sh` installs systemd link
+rules that rename each matching device before networkd and hostapd start.
 
 ## Repository layout
 
