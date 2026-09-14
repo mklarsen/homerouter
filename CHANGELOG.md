@@ -12,6 +12,8 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+- Persist interface role names by matching WAN, LAN, and Wi-Fi devices by MAC.
+
 ## [0.4.1] - 2026-09-04
 
 ### Fixed

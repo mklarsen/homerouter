@@ -1,0 +1,6 @@
+# Managed by homerouter setup.sh. Match the WAN NIC by MAC.
+${WAN_MAC_CMT}[Match]
+${WAN_MAC_CMT}MACAddress=${WAN_MAC}
+${WAN_MAC_CMT}
+${WAN_MAC_CMT}[Link]
+${WAN_MAC_CMT}Name=${WAN_IF}

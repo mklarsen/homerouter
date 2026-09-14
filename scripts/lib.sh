@@ -97,6 +97,7 @@ install_packages() {
 # Every variable substituted into config/*.template.
 TEMPLATE_VARS=(
     WAN_IF LAN_IF WIFI_IF BRIDGE_IF
+    WAN_MAC LAN_MAC WIFI_MAC WAN_MAC_CMT LAN_MAC_CMT WIFI_MAC_CMT
     WAN_IP4_PRIMARY WAN_IP4_SECONDARY WAN_IP4_TERTIARY WAN_IP4_PREFIXLEN WAN_GW4
     WAN_IP6 WAN_IP6_PREFIXLEN WAN_GW6
     LAN_IP4 LAN_NET4 LAN_PREFIXLEN4 LAN_NETMASK4
@@ -129,6 +130,9 @@ load_env() {
     : "${WAN_IF:=enp3s0}"
     : "${LAN_IF:=enp4s0}"
     : "${WIFI_IF:=wlp6s0}"
+    : "${WAN_MAC:=}"
+    : "${LAN_MAC:=}"
+    : "${WIFI_MAC:=}"
     : "${BRIDGE_IF:=br0}"
     : "${UNUSED_IFS:=}"
 
@@ -187,6 +191,10 @@ load_env() {
     : "${WIFI_CHANNEL:=36}"
     : "${WIFI_VHT:=1}"
     : "${WIFI_WPA3_ONLY:=0}"
+
+    if [[ -n $WAN_MAC ]]; then WAN_MAC_CMT=""; else WAN_MAC_CMT="# "; fi
+    if [[ -n $LAN_MAC ]]; then LAN_MAC_CMT=""; else LAN_MAC_CMT="# "; fi
+    if [[ -n $WIFI_MAC ]]; then WIFI_MAC_CMT=""; else WIFI_MAC_CMT="# "; fi
 
     # Derived values; consumed by render_template via TEMPLATE_VARS.
     LAN_PREFIXLEN4="${LAN_NET4##*/}"
