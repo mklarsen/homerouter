@@ -1,4 +1,0 @@
-services:
-  vpn-proxy:
-    image: ghcr.io/mklarsen/homerouter-gost:3.3.0
-    pull_policy: always
