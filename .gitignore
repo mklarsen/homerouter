@@ -2,3 +2,4 @@
 .env
 *.rendered
 *.bak
+.handover.md

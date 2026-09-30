@@ -1,0 +1,4 @@
+services:
+  vpn-proxy:
+    image: homerouter/gost:3.3.0-local.1
+    pull_policy: never
