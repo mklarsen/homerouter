@@ -13,6 +13,7 @@ as the release notes. Merges without a new version heading do not release.
 ## [Unreleased]
 
 - Add proxy-router and proxy-extension addons under `addons/`.
+- Publish the pinned GOST-derived proxy image to GitHub Container Registry.
 - Persist interface role names by matching WAN, LAN, and Wi-Fi devices by MAC.
 
 ## [0.4.1] - 2026-09-04

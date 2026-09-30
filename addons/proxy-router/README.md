@@ -1,37 +1,35 @@
 # Homerouter GOST image
 
-This addon provides a reproducible source build for the authenticated Homerouter proxy. The build uses the official GOST source and the existing `remote-box` Buildx builder on Homerouter.
+This addon publishes the Homerouter proxy image to GitHub Container Registry as [`ghcr.io/mklarsen/homerouter-gost`](https://github.com/mklarsen/homerouter/pkgs/container/homerouter-gost). No GOST source checkout or image archive is needed in the local repository.
 
 ## Pinned source
 
 - Upstream: <https://github.com/go-gost/gost>
 - Release: `v3.3.0`
 - Commit: `cb76f63754768c7b5d68895a0d51635b0141b80f`
-- Local image tag: `homerouter/gost:3.3.0-local.1`
+- Published image: `ghcr.io/mklarsen/homerouter-gost:3.3.0`
 - Target: `linux/amd64` (Homerouter reports `x86_64`)
 
-The upstream checkout is cloned into `gost-source/` on first build and is excluded from Git. Its own Dockerfile builds the GOST binary from the pinned source. Docker still downloads the upstream builder and Alpine base images; the final GOST image is built by Homerouter rather than pulled as `gogost/gost`.
+The GitHub Actions workflow builds from the upstream GOST repository at the pinned commit and publishes version, commit, and `latest` tags to GHCR. Publishing is restricted to workflow runs on `main`. The image uses upstream's Dockerfile and includes OCI source, license, and vendor labels. Docker pulls the upstream Go and Alpine base images during the build.
 
-## Build and stage
+## Build and publish
 
-Requirements: Docker Buildx builder `remote-box` configured for `ssh://root@10.10.10.1`, Git, and SSH/SCP access to Homerouter.
+The workflow runs when its relevant files change on `main`, or can be started manually from the Actions tab with **Publish Homerouter GOST image**. It needs no custom registry secret: GitHub Actions uses the repository-scoped `GITHUB_TOKEN` with `packages: write`.
 
-```powershell
-.\addons\proxy-router\Build-GostImage.ps1
-.\addons\proxy-router\Transfer-GostImage.ps1
-```
+After the first successful publish, set the `homerouter-gost` package visibility to **Public** in GitHub Packages (`https://github.com/users/mklarsen/packages/container/package/homerouter-gost`). GitHub creates new container packages as private by default; public visibility is required for Homerouter to pull anonymously.
 
-The build script verifies the source commit and confirms that `remote-box` targets Homerouter. BuildKit on Homerouter compiles the source for `linux/amd64`; only the resulting Docker archive is exported to `addons/proxy-router/dist/`. The transfer script copies that archive and the Compose override to `/opt/stacks`, runs `docker load`, and verifies the image tag. It does **not** restart or replace the running proxy service.
-
-## Apply future image updates
-
-The `homerouter/gost:3.3.0-local.1` image is currently active on Homerouter. For a future rebuilt image, stage it with `Transfer-GostImage.ps1`, then recreate only the proxy service on Homerouter:
+To switch Homerouter from the currently running local image after the package is public, copy `docker-compose.ghcr.yml` to `/opt/stacks/homerouter-gost-image.yml`, then run:
 
 ```sh
 cd /opt/stacks
+docker compose -f docker-compose.yml -f homerouter-gost-image.yml pull vpn-proxy
 docker compose -f docker-compose.yml -f homerouter-gost-image.yml up -d --no-deps vpn-proxy
 ```
 
-The override uses `pull_policy: never`, so Compose will not fall back to a public GOST image. This recreates only `vpn-proxy` and briefly interrupts proxy traffic. The base stack, Traefik, labels, and runtime command remain unchanged.
+This only recreates `vpn-proxy`; it briefly interrupts proxy traffic.
+
+## Upstream credit and license
+
+This is a Homerouter-maintained derivative image built from [GOST](https://github.com/go-gost/gost) v3.3.0; it is not an official GOST image. GOST is copyright its upstream authors and distributed under the MIT License, preserved in [`LICENSE.GOST`](LICENSE.GOST). Homerouter's own code and configuration remain under the repository-root license.
 
 The existing proxy authentication command in the shared stack is not modified here. Replace any weak credentials with a strong unique secret before exposing the proxy publicly.
