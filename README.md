@@ -57,6 +57,10 @@ rules that rename each matching device before networkd and hostapd start.
 │   ├── lib.sh                                # helpers, .env loading, rendering
 │   ├── selftest.sh                           # render + validate, no system changes
 │   └── verify.sh                             # post-install health check
+├── addons/
+│   ├── proxy-extension/                      # Homerouter Chromium extension
+│   ├── proxy-router/                         # source-built GOST proxy image
+│   └── status/                               # router status addon
 ├── .env.example
 ├── CHANGELOG.md
 ├── install.sh                                # bootstrap: fetch latest release
