@@ -16,6 +16,9 @@ import (
 //go:embed admin.html
 var adminHTML []byte
 
+//go:embed api-docs.html
+var apiDocsHTML []byte
+
 //go:embed openapi.yaml
 var openAPISpec []byte
 
@@ -49,6 +52,15 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(adminHTML)
+		return
+	}
+	if !r.URL.IsAbs() && (r.URL.Path == "/api/docs" || r.URL.Path == "/api/docs/") {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(apiDocsHTML)
 		return
 	}
 	if !r.URL.IsAbs() && strings.HasPrefix(r.URL.Path, "/api/v1/") {

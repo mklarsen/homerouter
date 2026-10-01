@@ -15,6 +15,7 @@ as the release notes. Merges without a new version heading do not release.
 - Add proxy-router and proxy-extension addons under `addons/`.
 - Add an independent standard-library Go HTTP/CONNECT proxy with `/vpnadm` and a user-management API.
 - Add versioned REST CRUD, optional Bearer-token service auth, OpenAPI/Bruno docs, and a host-path overview for proxy data.
+- Add a browser-readable API reference while preserving the OpenAPI YAML download.
 - Bind-mount proxy user data at `/opt/stacks/proxy-data` and preserve the existing user store during migration.
 - Retain upstream GOST attribution; replace the vendored GOST implementation with Homerouter-owned proxy code.
 - Bump the proxy extension to `1.3.6` and bypass `vpn.homerouter.io` to prevent the admin UI from proxy-looping.
