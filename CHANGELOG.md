@@ -24,7 +24,7 @@ as the release notes. Merges without a new version heading do not release.
 - Retain upstream GOST attribution; replace the vendored GOST implementation with Homerouter-owned proxy code.
 - Bump the proxy extension to `1.3.9`, verify credentials independently of Chrome's auth cache, and request server-side tunnel closure on disconnect.
 - Add `/api/v1/proxy/verify` for direct HTTPS proxy-credential verification.
-- Organize the proxy admin interface into Danish user, logging, and API views; remove the duplicate credential-verification path from OpenAPI.
+- Organize the proxy admin interface into English user, logging, and API views; remove the duplicate credential-verification path from OpenAPI.
 - Persist interface role names by matching WAN, LAN, and Wi-Fi devices by MAC.
 
 ## [0.4.1] - 2026-09-04

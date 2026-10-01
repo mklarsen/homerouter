@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Homerouter Proxy API
-  version: 1.2.6
+  version: 1.2.7
   description: >-
     HTTPS JSON API for proxy-user administration. Browser clients may use the
     administrator session cookie. Trusted backend services may use a configured

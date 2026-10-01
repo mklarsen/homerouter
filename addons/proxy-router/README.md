@@ -8,7 +8,7 @@ This addon is an independently maintained HTTP/CONNECT forward proxy written in 
 - HTTP forwarding and HTTPS CONNECT tunnels are supported on destination ports 80 and 443.
 - Private, loopback, link-local, multicast, reserved, and documentation destinations are rejected.
 - `/vpnadm` provides admin login, mandatory bootstrap-password rotation, and proxy-user create/disable/delete operations.
-- `/vpnadm` groups user activity and management, Docker log levels, and API guidance into separate views.
+- `/vpnadm` groups user activity and management, Docker log levels, and API guidance into separate English-language views.
 - `/api/v1` is a versioned JSON REST API with list/create/read/update/delete user operations. Browser sessions and optional Bearer-token service authentication are supported.
 - `/api/docs` is a browser-readable API reference; `/api/v1/openapi.yaml` remains the machine-readable contract download.
 - Proxy traffic is written to Docker logs with an admin-configurable persistent level: `DEBUG`, `INFO` (default), `WARNING`, or `ERROR`.
@@ -62,7 +62,7 @@ The multi-stage Dockerfile also runs the tests before building the `linux/amd64`
 Use an existing GitHub CLI login with package-write access and run the publisher. It does not modify authentication scopes:
 
 ```powershell
-.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.6
+.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.7
 ```
 
 The script verifies that Buildx builder `remote-box` targets Homerouter at `10.10.10.1`, then pushes versioned and `latest` tags to GHCR. GitHub may create the package as private. Set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy) before relying on anonymous pulls from Homerouter.
