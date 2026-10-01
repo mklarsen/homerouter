@@ -10,6 +10,24 @@ let testRequestURL = null;
 let testAuthChallenges = 0;
 let testAuthRejected = false;
 const proxyAuthAttempts = new Map();
+const actionIcons = {
+  connected: {
+    16: "icons/icon16-connected.png",
+    32: "icons/icon32-connected.png",
+    48: "icons/icon48-connected.png",
+    128: "icons/icon128-connected.png"
+  },
+  disconnected: {
+    16: "icons/icon16.png",
+    32: "icons/icon32.png",
+    48: "icons/icon48.png",
+    128: "icons/icon128.png"
+  }
+};
+
+function updateActionIcon(connected) {
+  chrome.action.setIcon({ path: connected ? actionIcons.connected : actionIcons.disconnected });
+}
 
 function hasProxyCredentials(credentials) {
   return Boolean(
@@ -44,17 +62,17 @@ async function verifyProxyCredentials(credentials) {
       signal: controller.signal
     });
     if (response.status === 401) {
-      return { success: false, error: "Proxyen afviste brugernavn eller adgangskode." };
+      return { success: false, error: "The proxy rejected the username or password." };
     }
     if (!response.ok) {
-      return { success: false, error: "Proxyens credential-verifikation svarede uventet (" + response.status + ")." };
+      return { success: false, error: "Proxy credential verification returned an unexpected status (" + response.status + ")." };
     }
     const result = await response.json().catch(() => ({}));
     return result.verified === true
       ? { success: true }
-      : { success: false, error: "Proxyen kunne ikke bekræfte credentials." };
+      : { success: false, error: "The proxy could not verify the credentials." };
   } catch (_) {
-    return { success: false, error: "Kunne ikke verificere credentials mod vpn.homerouter.io." };
+    return { success: false, error: "Could not verify credentials with vpn.homerouter.io." };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -79,11 +97,16 @@ loadStoredConfig();
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local") {
+    if (changes.connected) updateActionIcon(changes.connected.newValue === true);
     if (changes.proxyHost) proxyConfig.host = changes.proxyHost.newValue;
     if (changes.proxyPort) proxyConfig.port = parseInt(changes.proxyPort.newValue, 10);
     if (changes.proxyUser) proxyConfig.username = changes.proxyUser.newValue;
     if (changes.proxyPass) proxyConfig.password = changes.proxyPass.newValue;
   }
+});
+
+chrome.storage.local.get(["connected"], stored => {
+  updateActionIcon(Boolean(stored && stored.connected));
 });
 
 function applyProxy(host, port, callback) {
@@ -162,7 +185,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (!hasValidProxyTarget(config.host, config.port) || !hasProxyCredentials(config)) {
       sendResponse({
         status: "error",
-        error: "Angiv en gyldig proxy samt brugernavn og adgangskode (mindst 12 tegn)."
+        error: "Enter a valid proxy host, username, and password (at least 12 characters)."
       });
       return;
     }
@@ -202,7 +225,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (!hasProxyCredentials({ username, password })) {
       sendResponse({
         success: false,
-        error: "Indtast et proxy-brugernavn og en adgangskode på mindst 12 tegn."
+        error: "Enter a proxy username and a password of at least 12 characters."
       });
       return;
     }
@@ -248,7 +271,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (error) {
               sendResponse({
                 success: false,
-                error: "Kunne ikke gendanne den tidligere proxy: " + error
+                error: "Could not restore the previous proxy: " + error
               });
             } else {
               sendResponse(result);
@@ -275,7 +298,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           if (proxyError) {
             finishTest({
               success: false,
-              error: "Kunne ikke anvende proxyindstillingerne: " + proxyError
+              error: "Could not apply the proxy settings: " + proxyError
             });
             return;
           }
@@ -297,23 +320,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             } else if (res.status === 407) {
               result = {
                 success: false,
-                error: "Proxyen afviste de indtastede credentials."
+                error: "The proxy rejected the entered credentials."
               };
             } else {
               result = {
                 success: false,
-                error: "Proxyen svarede uventet (" + res.status + ")."
+                error: "The proxy returned an unexpected status (" + res.status + ")."
               };
             }
           } catch (err) {
             result = testAuthRejected
               ? {
                   success: false,
-                  error: "Proxyen afviste de indtastede credentials."
+                  error: "The proxy rejected the entered credentials."
                 }
               : {
                   success: false,
-                  error: "Kunne ikke forbinde via proxyen. Kontrollér server, port og netværk."
+                  error: "Could not connect through the proxy. Check the host, port, and network."
                 };
           } finally {
             clearTimeout(timeoutId);
@@ -371,7 +394,7 @@ chrome.webRequest.onCompleted.addListener(
   { urls: ["<all_urls>"] }
 );
 
-// Fang fejl når tunnelen eller proxyen dør og vis custom fejlside
+// Show a custom error page when the tunnel or proxy connection fails.
 chrome.webRequest.onErrorOccurred.addListener(
   (details) => {
     proxyAuthAttempts.delete(details.requestId);

@@ -19,12 +19,12 @@ function saveProxySettings(host, port, username, password, testResult) {
   if (!testResult.success || testResult.credentialsVerified !== true) {
     saveSettingsBtn.disabled = false;
     feedback.className = "feedback-error";
-    feedback.textContent = testResult.error || "Proxy-login blev ikke verificeret. Indstillingerne blev ikke gemt.";
+    feedback.textContent = testResult.error || "Proxy credentials were not verified. Settings were not saved.";
     return;
   }
 
   feedback.className = "feedback-loading";
-  feedback.textContent = "Gemmer indstillinger...";
+  feedback.textContent = "Saving settings...";
 
   chrome.storage.local.set(
     {
@@ -38,10 +38,10 @@ function saveProxySettings(host, port, username, password, testResult) {
 
       if (chrome.runtime.lastError) {
         feedback.className = "feedback-error";
-        feedback.textContent = "Kunne ikke gemme: " + chrome.runtime.lastError.message;
+        feedback.textContent = "Could not save settings: " + chrome.runtime.lastError.message;
       } else {
         feedback.className = "feedback-success";
-        feedback.textContent = "Gemt. Login og proxyforbindelse er verificeret.";
+        feedback.textContent = "Saved. Credentials and proxy connection are verified.";
       }
     }
   );
@@ -82,13 +82,13 @@ saveSettingsBtn.addEventListener("click", () => {
 
   if (!username || password.length < 12) {
     feedback.className = "feedback-error";
-    feedback.textContent = "Indtast brugernavn og adgangskode på mindst 12 tegn.";
+    feedback.textContent = "Enter a username and a password of at least 12 characters.";
     return;
   }
 
   saveSettingsBtn.disabled = true;
   feedback.className = "feedback-loading";
-  feedback.textContent = "Tester forbindelse...";
+  feedback.textContent = "Testing connection...";
 
   chrome.runtime.sendMessage(
     {
@@ -107,7 +107,7 @@ saveSettingsBtn.addEventListener("click", () => {
       saveProxySettings(host, port, username, password, {
         success: Boolean(res && res.success),
         credentialsVerified: Boolean(res && res.credentialsVerified),
-        error: res && res.error ? res.error : "Ingen testsvar fra proxyen."
+        error: res && res.error ? res.error : "No response from the proxy test."
       });
     }
   );
@@ -135,16 +135,16 @@ btn.addEventListener("click", () => {
             return;
           }
           if (!response || response.status !== "disconnected") {
-            showConnectionError(response && response.error ? response.error : "Kunne ikke afbryde tunnelen.");
+            showConnectionError(response && response.error ? response.error : "Could not disconnect the tunnel.");
             return;
           }
           updateUI(false);
           if (response.remoteCloseConfirmed) {
             feedback.className = "feedback-success";
-            feedback.textContent = `Proxy afbrudt; ${response.closedConnections} forbindelser lukket på serveren.`;
+            feedback.textContent = `Proxy disconnected; ${response.closedConnections} server connections closed.`;
           } else {
             feedback.className = "feedback-warning";
-            feedback.textContent = "Proxy afbrudt lokalt; serveren kunne ikke bekræfte lukning af eksisterende forbindelser.";
+            feedback.textContent = "Proxy disconnected locally; the server could not confirm closure of existing connections.";
           }
         });
         return;
@@ -158,13 +158,13 @@ btn.addEventListener("click", () => {
       };
 
       if (!config.username.trim() || config.password.length < 12) {
-        showConnectionError("Indtast og gem et proxy-brugernavn samt en adgangskode på mindst 12 tegn.");
+        showConnectionError("Enter and save a proxy username and a password of at least 12 characters.");
         return;
       }
 
       btn.disabled = true;
       feedback.className = "feedback-loading";
-      feedback.textContent = "Validerer login før tilslutning...";
+      feedback.textContent = "Verifying credentials before connecting...";
 
       chrome.runtime.sendMessage(
         { action: "test-connection", payload: config },
@@ -180,7 +180,7 @@ btn.addEventListener("click", () => {
             showConnectionError(
               testResponse && testResponse.error
                 ? testResponse.error
-                : "Proxyforbindelsen kunne ikke valideres."
+                : "The proxy connection could not be verified."
             );
             return;
           }
@@ -198,13 +198,13 @@ btn.addEventListener("click", () => {
                 showConnectionError(
                   connectResponse && connectResponse.error
                     ? connectResponse.error
-                    : "Kunne ikke aktivere proxyen."
+                    : "Could not enable the proxy."
                 );
                 return;
               }
 
               feedback.className = "feedback-success";
-              feedback.textContent = "Login valideret; proxyen er tilsluttet.";
+              feedback.textContent = "Credentials verified; proxy connected.";
               updateUI(true);
             }
           );
@@ -223,13 +223,13 @@ function showConnectionError(message) {
 
 function updateUI(connected) {
   if (connected) {
-    btn.textContent = "AFBRYD TUNNEL";
+    btn.textContent = "DISCONNECT TUNNEL";
     btn.className = "action-btn connected";
     statusDot.className = "dot active";
     connectionBadge.className = "badge online";
     statusText.textContent = "CONNECTED";
   } else {
-    btn.textContent = "TILSLUT TUNNEL";
+    btn.textContent = "CONNECT TUNNEL";
     btn.className = "action-btn disconnected";
     statusDot.className = "dot inactive";
     connectionBadge.className = "badge offline";

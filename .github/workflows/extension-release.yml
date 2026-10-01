@@ -1,0 +1,133 @@
+name: proxy extension release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - addons/proxy-extension/manifest.json
+      - addons/proxy-extension/background.js
+      - addons/proxy-extension/popup.html
+      - addons/proxy-extension/popup.js
+      - addons/proxy-extension/error.html
+      - addons/proxy-extension/error.js
+      - addons/proxy-extension/icons/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: proxy-extension-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    name: package & publish
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install ZIP tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zip unzip
+
+      - name: Validate release version
+        id: version
+        run: |
+          set -euo pipefail
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const { execFileSync } = require("node:child_process");
+          const fs = require("node:fs");
+
+          const manifest = JSON.parse(fs.readFileSync("addons/proxy-extension/manifest.json", "utf8"));
+          const version = manifest.version;
+          const tag = `extension-v${version}`;
+          const parseVersion = value => {
+            if (!/^\d+\.\d+\.\d+$/.test(value)) throw new Error(`Invalid extension SemVer: ${value}`);
+            return value.split(".").map(Number);
+          };
+          const compareVersions = (left, right) => {
+            const a = parseVersion(left);
+            const b = parseVersion(right);
+            for (let index = 0; index < a.length; index += 1) {
+              if (a[index] !== b[index]) return a[index] - b[index];
+            }
+            return 0;
+          };
+
+          const changelog = fs.readFileSync("addons/proxy-extension/CHANGELOG.md", "utf8");
+          const newestEntry = changelog.match(/^## \[(\d+\.\d+\.\d+)\] - \d{4}-\d{2}-\d{2}$/m);
+          if (!newestEntry || newestEntry[1] !== version) {
+            throw new Error(`Extension changelog must have a top entry matching manifest version ${version}.`);
+          }
+
+          const tags = execFileSync("git", ["tag", "--list", "extension-v*"], { encoding: "utf8" })
+            .trim()
+            .split("\n")
+            .filter(Boolean);
+          if (tags.includes(tag)) throw new Error(`Extension release tag ${tag} already exists.`);
+          const releasedVersions = tags.map(existingTag => existingTag.match(/^extension-v(\d+\.\d+\.\d+)$/)?.[1]).filter(Boolean);
+          if (releasedVersions.length > 0) {
+            const latest = releasedVersions.reduce((highest, candidate) => compareVersions(candidate, highest) > 0 ? candidate : highest);
+            if (compareVersions(version, latest) <= 0) {
+              throw new Error(`Extension version ${version} must be greater than the latest released version ${latest}.`);
+            }
+          }
+
+          console.log(`version=${version}`);
+          console.log(`tag=${tag}`);
+          NODE
+
+      - name: Build ZIP and checksum
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/extension-release"
+          bash addons/proxy-extension/package.sh "$output_dir"
+          node - "$VERSION" "$output_dir" <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const [version, outputDir] = process.argv.slice(2);
+          const lines = fs.readFileSync("addons/proxy-extension/CHANGELOG.md", "utf8").split(/\r?\n/);
+          const heading = `## [${version}] - `;
+          const start = lines.findIndex(line => line.startsWith(heading));
+          if (start === -1) throw new Error(`Release notes for ${version} were not found.`);
+          let end = lines.findIndex((line, index) => index > start && line.startsWith("## ["));
+          if (end === -1) end = lines.length;
+          const notes = lines.slice(start + 1, end).join("\n").trim();
+          if (!notes) throw new Error(`Release notes for ${version} are empty.`);
+          fs.writeFileSync(path.join(outputDir, "release-notes.md"), `${notes}\n`);
+          NODE
+
+      - name: Publish extension release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/extension-release"
+          notes="$(cat "$output_dir/release-notes.md")"
+          gh api "repos/$GITHUB_REPOSITORY/releases" \
+            --method POST \
+            -F "tag_name=$TAG" \
+            -F "target_commitish=$GITHUB_SHA" \
+            -F "name=homerouter.io $VERSION" \
+            -F "body=$notes" \
+            -F draft=false \
+            -F prerelease=false \
+            -f make_latest=false > /dev/null
+          gh release upload "$TAG" \
+            "$output_dir/homerouter-extension-$VERSION.zip" \
+            "$output_dir/SHA256SUMS" \
+            --repo "$GITHUB_REPOSITORY"

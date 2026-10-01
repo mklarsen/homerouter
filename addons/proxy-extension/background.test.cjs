@@ -4,10 +4,11 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-function createBackground(fetchHandler) {
+function createBackground(fetchHandler, initialState = {}) {
   const handlers = {};
-  const state = {};
+  const state = { ...initialState };
   const fetchRequests = [];
+  const iconUpdates = [];
   let proxySetCount = 0;
   let proxyClearCount = 0;
 
@@ -26,8 +27,13 @@ function createBackground(fetchHandler) {
           callback({ ...state });
         },
         set(values, callback) {
+          const changes = Object.fromEntries(Object.entries(values).map(([key, newValue]) => [key, {
+            oldValue: state[key],
+            newValue
+          }]));
           Object.assign(state, values);
           if (callback) callback();
+          if (Object.keys(changes).length) handlers.storageChanged.listener(changes, "local");
         }
       },
       onChanged: event("storageChanged")
@@ -45,6 +51,11 @@ function createBackground(fetchHandler) {
         get(_details, callback) {
           callback({ levelOfControl: "controlled_by_this_extension" });
         }
+      }
+    },
+    action: {
+      setIcon(details) {
+        iconUpdates.push(details.path);
       }
     },
     runtime: {
@@ -96,6 +107,7 @@ function createBackground(fetchHandler) {
     },
     fetchRequests,
     state,
+    iconUpdates,
     proxySetCount: () => proxySetCount,
     proxyClearCount: () => proxyClearCount
   };
@@ -104,6 +116,54 @@ function createBackground(fetchHandler) {
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
+
+test("toolbar icon restores the saved connection state on service worker startup", () => {
+  const background = createBackground(null, {
+    connected: true,
+    proxyUser: "alice",
+    proxyPass: "a-long-proxy-password-123"
+  });
+
+  assert.deepEqual(plain(background.iconUpdates.at(-1)), {
+    16: "icons/icon16-connected.png",
+    32: "icons/icon32-connected.png",
+    48: "icons/icon48-connected.png",
+    128: "icons/icon128-connected.png"
+  });
+});
+
+test("toolbar icon returns to the original variant after disconnect", async () => {
+  const background = createBackground();
+  const config = {
+    host: "vpn.homerouter.io",
+    port: 443,
+    username: "alice",
+    password: "a-long-proxy-password-123"
+  };
+
+  assert.deepEqual(plain(background.iconUpdates.at(-1)), {
+    16: "icons/icon16.png",
+    32: "icons/icon32.png",
+    48: "icons/icon48.png",
+    128: "icons/icon128.png"
+  });
+  assert.equal(background.sendMessage({ action: "connect", payload: config }).status, "connected");
+  assert.deepEqual(plain(background.iconUpdates.at(-1)), {
+    16: "icons/icon16-connected.png",
+    32: "icons/icon32-connected.png",
+    48: "icons/icon48-connected.png",
+    128: "icons/icon128-connected.png"
+  });
+
+  const response = await background.sendMessageAsync({ action: "disconnect", payload: config });
+  assert.equal(response.status, "disconnected");
+  assert.deepEqual(plain(background.iconUpdates.at(-1)), {
+    16: "icons/icon16.png",
+    32: "icons/icon32.png",
+    48: "icons/icon48.png",
+    128: "icons/icon128.png"
+  });
+});
 
 test("missing credentials cancel proxy auth and refuse connect", () => {
   const background = createBackground();
@@ -158,7 +218,7 @@ test("connection test refuses missing proxy credentials before setting proxy", (
     payload: { host: "vpn.homerouter.io", port: 443, username: "alice", password: "" }
   });
   assert.equal(response.success, false);
-  assert.match(response.error, /brugernavn.*adgangskode/i);
+  assert.match(response.error, /username.*password/i);
   assert.equal(background.proxySetCount(), 0);
 });
 
@@ -197,7 +257,7 @@ test("connection test rejects credentials the verification endpoint rejects", as
   });
 
   assert.equal(response.success, false);
-  assert.match(response.error, /afviste brugernavn eller adgangskode/i);
+  assert.match(response.error, /rejected the username or password/i);
   assert.equal(background.proxySetCount(), 0);
 });
 

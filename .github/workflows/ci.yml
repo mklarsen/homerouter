@@ -20,10 +20,10 @@ jobs:
       - name: Install tooling
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck nftables dnsmasq-base gettext-base python3-yaml
+          sudo apt-get install -y -qq shellcheck nftables dnsmasq-base gettext-base python3-yaml zip unzip
 
       - name: ShellCheck
-        run: shellcheck -x setup.sh install.sh scripts/*.sh
+        run: shellcheck -x setup.sh install.sh scripts/*.sh addons/proxy-extension/package.sh
 
       - name: Validate CHANGELOG.md
         run: ./scripts/changelog.sh check
@@ -39,6 +39,66 @@ jobs:
 
       - name: Test proxy extension authentication
         run: node --test addons/proxy-extension/background.test.cjs
+
+      - name: Validate extension version bump
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_SHA" --depth=1
+          node <<'NODE'
+          const { execFileSync } = require("node:child_process");
+          const fs = require("node:fs");
+
+          const base = process.env.BASE_SHA;
+          const changed = execFileSync("git", ["diff", "--name-only", base, "HEAD"], { encoding: "utf8" })
+            .trim()
+            .split("\n")
+            .filter(Boolean);
+          const isPackagedFile = file => file === "addons/proxy-extension/manifest.json" ||
+            ["background.js", "popup.html", "popup.js", "error.html", "error.js"].some(name => file === `addons/proxy-extension/${name}`) ||
+            file.startsWith("addons/proxy-extension/icons/");
+
+          if (!changed.some(isPackagedFile)) {
+            console.log("No packaged extension files changed; no extension version bump required.");
+            process.exit(0);
+          }
+
+          const manifestPath = "addons/proxy-extension/manifest.json";
+          const previous = JSON.parse(execFileSync("git", ["show", `${base}:${manifestPath}`], { encoding: "utf8" })).version;
+          const current = JSON.parse(fs.readFileSync(manifestPath, "utf8")).version;
+          const parseVersion = version => {
+            if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Invalid extension SemVer: ${version}`);
+            return version.split(".").map(Number);
+          };
+          const compareVersions = (left, right) => {
+            const a = parseVersion(left);
+            const b = parseVersion(right);
+            for (let index = 0; index < a.length; index += 1) {
+              if (a[index] !== b[index]) return a[index] - b[index];
+            }
+            return 0;
+          };
+
+          if (compareVersions(current, previous) <= 0) {
+            throw new Error(`Packaged extension files changed, but manifest version ${current} was not increased above ${previous}.`);
+          }
+
+          const changelog = fs.readFileSync("addons/proxy-extension/CHANGELOG.md", "utf8");
+          const newestEntry = changelog.match(/^## \[(\d+\.\d+\.\d+)\] - \d{4}-\d{2}-\d{2}$/m);
+          if (!newestEntry || newestEntry[1] !== current) {
+            throw new Error(`Extension CHANGELOG.md must have a top release entry matching manifest version ${current}.`);
+          }
+          console.log(`Extension version ${previous} -> ${current} and changelog entry validated.`);
+          NODE
+
+      - name: Validate extension ZIP package
+        run: |
+          set -euo pipefail
+          output_dir="$(mktemp -d)"
+          trap 'rm -rf -- "$output_dir"' EXIT
+          bash addons/proxy-extension/package.sh "$output_dir"
 
       - name: Render and validate configuration
         run: sudo -E ./scripts/selftest.sh
