@@ -1,27 +1,35 @@
 # Homerouter GOST image
 
-This addon publishes the Homerouter proxy image to GitHub Container Registry as [`ghcr.io/mklarsen/homerouter-gost`](https://github.com/mklarsen/homerouter/pkgs/container/homerouter-gost). No GOST source checkout or image archive is needed in the local repository.
+This addon contains the minimal Go source needed to build a Homerouter-branded GOST derivative and publish it to GitHub Container Registry as `ghcr.io/mklarsen/homerouter-proxy`.
 
 ## Pinned source
 
 - Upstream: <https://github.com/go-gost/gost>
 - Release: `v3.3.0`
 - Commit: `cb76f63754768c7b5d68895a0d51635b0141b80f`
-- Published image: `ghcr.io/mklarsen/homerouter-gost:3.3.0`
+- Published image: `ghcr.io/mklarsen/homerouter-proxy:3.3.0`
 - Target: `linux/amd64` (Homerouter reports `x86_64`)
 
-The GitHub Actions workflow builds from the upstream GOST repository at the pinned commit and publishes version, commit, and `latest` tags to GHCR. Publishing is restricted to workflow runs on `main`. The image uses upstream's Dockerfile and includes OCI source, license, and vendor labels. Docker pulls the upstream Go and Alpine base images during the build.
+The GOST Go source, upstream Dockerfile, module files, and license are vendored in `upstream/`. The snapshot is pinned to the commit above and omits upstream `.git`, `.github` CI/nightly workflows, tests, and release tooling. This repository has no automatic or scheduled proxy-image build; publishing is manual only.
 
-## Build and publish
+## Manual build and publish
 
-The workflow runs when its relevant files change on `main`, or can be started manually from the Actions tab with **Publish Homerouter GOST image**. It needs no custom registry secret: GitHub Actions uses the repository-scoped `GITHUB_TOKEN` with `packages: write`.
+The build runs on Homerouter through the existing Docker Buildx `remote-box` builder. The local Docker CLI sends the vendored source directory to that Linux builder, which builds `upstream/Dockerfile` and pushes directly to GHCR. No image tarball or temporary source clone is needed.
 
-After the first successful publish, set the `homerouter-gost` package visibility to **Public** in GitHub Packages (`https://github.com/users/mklarsen/packages/container/package/homerouter-gost`). GitHub creates new container packages as private by default; public visibility is required for Homerouter to pull anonymously.
+Grant the GitHub CLI package-write scope once, then run the manual publisher:
 
-To switch Homerouter from the currently running local image after the package is public, copy `docker-compose.ghcr.yml` to `/opt/stacks/homerouter-gost-image.yml`, then run:
+```powershell
+gh auth refresh -h github.com -s write:packages
+.\addons\proxy-router\Publish-GostImage.ps1
+```
+
+The script verifies the upstream commit and `remote-box` endpoint, then pushes `3.3.0`, `3.3.0-cb76f63`, and `latest` tags to GHCR. GitHub creates new packages as private by default. After the first push, set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy); otherwise Homerouter cannot pull it anonymously.
+
+After verifying an anonymous pull from `10.10.10.1`, copy `docker-compose.ghcr.yml` to `/opt/stacks/homerouter-gost-image.yml` and switch only `vpn-proxy`:
 
 ```sh
 cd /opt/stacks
+docker pull ghcr.io/mklarsen/homerouter-proxy:3.3.0
 docker compose -f docker-compose.yml -f homerouter-gost-image.yml pull vpn-proxy
 docker compose -f docker-compose.yml -f homerouter-gost-image.yml up -d --no-deps vpn-proxy
 ```
@@ -30,6 +38,6 @@ This only recreates `vpn-proxy`; it briefly interrupts proxy traffic.
 
 ## Upstream credit and license
 
-This is a Homerouter-maintained derivative image built from [GOST](https://github.com/go-gost/gost) v3.3.0; it is not an official GOST image. GOST is copyright its upstream authors and distributed under the MIT License, preserved in [`LICENSE.GOST`](LICENSE.GOST). Homerouter's own code and configuration remain under the repository-root license.
+This is a Homerouter-maintained derivative image built from [GOST](https://github.com/go-gost/gost) v3.3.0; it is not an official GOST image. GOST is copyright its upstream authors and distributed under the MIT License, preserved in [`LICENSE.GOST`](LICENSE.GOST). The upstream source, release, commit, and exclusions are recorded in [`UPSTREAM.md`](UPSTREAM.md); the upstream English README is retained under `upstream/`. Homerouter's own code and configuration remain under the repository-root license.
 
 The existing proxy authentication command in the shared stack is not modified here. Replace any weak credentials with a strong unique secret before exposing the proxy publicly.
