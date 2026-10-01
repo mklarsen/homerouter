@@ -7,6 +7,7 @@ This addon contains the Chromium extension source for the Homerouter authenticat
 - Load this directory as an unpacked extension from `chrome://extensions`.
 - The extension version is defined once in `manifest.json`; the popup reads it dynamically.
 - Proxy settings are stored in the extension's local storage. Never commit credentials.
+- The proxy is not enabled without a username and a password of at least 12 characters. The extension only saves credentials after a proxy-auth challenge verifies them; a cache-only browser login is not treated as verification.
 
 ## Credits and license
 

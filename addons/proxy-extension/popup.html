@@ -330,11 +330,11 @@
     </div>
     <div class="form-group">
       <label>Brugernavn</label>
-      <input type="text" id="cfgUser" placeholder="Brugernavn">
+      <input type="text" id="cfgUser" placeholder="Brugernavn" required>
     </div>
     <div class="form-group">
       <label>Adgangskode</label>
-      <input type="password" id="cfgPass" placeholder="Adgangskode">
+      <input type="password" id="cfgPass" placeholder="Adgangskode (min. 12 tegn)" minlength="12" required>
     </div>
     <button id="saveSettingsBtn" class="save-btn">GEM &amp; TEST</button>
     <div id="settingsFeedback"></div>

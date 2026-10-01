@@ -19,7 +19,7 @@ as the release notes. Merges without a new version heading do not release.
 - Fix proxy-user create feedback, guard against duplicate submissions, and report duplicate usernames as HTTP 409.
 - Bind-mount proxy user data at `/opt/stacks/proxy-data` and preserve the existing user store during migration.
 - Retain upstream GOST attribution; replace the vendored GOST implementation with Homerouter-owned proxy code.
-- Bump the proxy extension to `1.3.6` and bypass `vpn.homerouter.io` to prevent the admin UI from proxy-looping.
+- Bump the proxy extension to `1.3.7`, bypass `vpn.homerouter.io` to prevent the admin UI from proxy-looping, and require verified proxy credentials.
 - Persist interface role names by matching WAN, LAN, and Wi-Fi devices by MAC.
 
 ## [0.4.1] - 2026-09-04
