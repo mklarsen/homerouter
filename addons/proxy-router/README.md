@@ -29,6 +29,7 @@ The browser-readable guide is at `https://vpn.homerouter.io/api/docs`; the OpenA
 | `GET` | `/api/v1/status` | API, storage path, account counts, active proxy users/connections, and current log level |
 | `GET` | `/api/v1/settings/logging` | Read the current persistent log level |
 | `PATCH` | `/api/v1/settings/logging` | Set the log level with `{"level":"DEBUG"}` |
+| `POST` | `/api/v1/proxy/verify` | Verify proxy username/password directly over HTTPS, independent of browser auth cache |
 | `POST` | `/api/v1/proxy/disconnect` | Close all in-flight connections for the proxy user authenticated in the JSON body |
 | `GET` | `/api/v1/users` | List user metadata and each user's in-flight request/tunnel count |
 | `POST` | `/api/v1/users` | Create a user with `{"username":"alice","password":"<secret>"}`; duplicate names return `409` |
@@ -43,6 +44,8 @@ Passwords and hashes are never returned. Current service authentication is a sin
 The admin overview refreshes active proxy users and connections every five seconds. A user is active only while an HTTP request is being processed or a CONNECT tunnel is open; this is not a persistent login/session indicator. Counts reset when the proxy restarts.
 
 The extension's explicit **Disconnect** action posts the proxy username/password to `/api/v1/proxy/disconnect` over HTTPS and the server cancels that user's active requests and CONNECT tunnels. Reusing one proxy account on multiple devices means disconnecting it will close all of those devices' connections. A browser/process killed without using Disconnect cannot reliably send this signal; its sockets close through normal TCP cleanup instead.
+
+The extension verifies entered credentials through `/api/v1/proxy/verify` before testing proxy traffic. This independent HTTPS check avoids treating Chrome's cached proxy login as proof of the newly entered credentials and avoids requiring a browser restart.
 ## Manual build and publish
 
 Run tests locally with Go 1.26 or newer:
@@ -58,7 +61,7 @@ The multi-stage Dockerfile also runs the tests before building the `linux/amd64`
 Use an existing GitHub CLI login with package-write access and run the publisher. It does not modify authentication scopes:
 
 ```powershell
-.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.4
+.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.5
 ```
 
 The script verifies that Buildx builder `remote-box` targets Homerouter at `10.10.10.1`, then pushes versioned and `latest` tags to GHCR. GitHub may create the package as private. Set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy) before relying on anonymous pulls from Homerouter.

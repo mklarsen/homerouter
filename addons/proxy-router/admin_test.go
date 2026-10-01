@@ -269,6 +269,32 @@ func TestProxyDisconnectAcceptsExtensionOriginAndUserCredentials(t *testing.T) {
 	}
 }
 
+func TestProxyCredentialVerifyAcceptsValidAndRejectsInvalidCredentials(t *testing.T) {
+	users, err := openUserStore(filepath.Join(t.TempDir(), "users.json"), "admin", "bootstrap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := users.createProxyUser("alice", "proxy-user-password-123"); err != nil {
+		t.Fatal(err)
+	}
+	service := &server{users: users, sessions: newSessionStore(), activity: newProxyActivity()}
+	verify := func(password string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{"username": "alice", "password": password})
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/proxy/verify", bytes.NewReader(body))
+		request.Host = "vpn.homerouter.io"
+		request.Header.Set("Origin", "chrome-extension://abcdefghijklmnopabcdefghijklmnop")
+		response := httptest.NewRecorder()
+		service.ServeHTTP(response, request)
+		return response
+	}
+	if response := verify("proxy-user-password-123"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"verified":true`) {
+		t.Fatalf("valid proxy credentials failed verification: %d %s", response.Code, response.Body.String())
+	}
+	if response := verify("incorrect-proxy-password"); response.Code != http.StatusUnauthorized {
+		t.Fatalf("invalid proxy credentials were not rejected: %d %s", response.Code, response.Body.String())
+	}
+}
+
 func TestProxyTrafficLogLevelsAndRedaction(t *testing.T) {
 	var output bytes.Buffer
 	previousWriter := log.Writer()

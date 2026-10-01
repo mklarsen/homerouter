@@ -81,7 +81,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimSuffix(r.URL.Path, "/")
-	if path == "/api/v1/proxy/disconnect" {
+	if path == "/api/v1/proxy/disconnect" || path == "/api/v1/proxy/verify" {
 		if !allowProxyDisconnectOrigin(w, r) {
 			writeAPIError(w, http.StatusForbidden, "origin rejected")
 			return
@@ -90,7 +90,11 @@ func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		s.handleProxyDisconnect(w, r)
+		if path == "/api/v1/proxy/disconnect" {
+			s.handleProxyDisconnect(w, r)
+		} else {
+			s.handleProxyCredentialVerify(w, r)
+		}
 		return
 	}
 	if r.Method == http.MethodOptions {
@@ -170,6 +174,27 @@ func (s *server) handleProxyDisconnect(w http.ResponseWriter, r *http.Request) {
 		"username":          input.Username,
 		"closed_connections": s.activity.disconnect(input.Username),
 	})
+}
+
+func (s *server) handleProxyCredentialVerify(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var input struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !s.users.authenticateProxy(input.Username, input.Password) {
+		logProxyEvent("auth_denied", "", r.RemoteAddr, r.Method, "/api/v1/proxy/verify", http.StatusUnauthorized, 0, 0, 0)
+		writeAPIError(w, http.StatusUnauthorized, "invalid proxy credentials")
+		return
+	}
+	logProxyEvent("auth_accepted", input.Username, r.RemoteAddr, r.Method, "/api/v1/proxy/verify", http.StatusOK, 0, 0, 0)
+	writeJSON(w, http.StatusOK, map[string]any{"username": input.Username, "verified": true})
 }
 
 func (s *server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {

@@ -22,7 +22,8 @@ as the release notes. Merges without a new version heading do not release.
 - Let the extension request server-side closure of a proxy user's in-flight connections on explicit disconnect.
 - Bind-mount proxy user data at `/opt/stacks/proxy-data` and preserve the existing user store during migration.
 - Retain upstream GOST attribution; replace the vendored GOST implementation with Homerouter-owned proxy code.
-- Bump the proxy extension to `1.3.8`, bypass `vpn.homerouter.io`, require verified credentials, and request server-side tunnel closure on disconnect.
+- Bump the proxy extension to `1.3.9`, verify credentials independently of Chrome's auth cache, and request server-side tunnel closure on disconnect.
+- Add `/api/v1/proxy/verify` for direct HTTPS proxy-credential verification.
 - Persist interface role names by matching WAN, LAN, and Wi-Fi devices by MAC.
 
 ## [0.4.1] - 2026-09-04

@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-function createBackground() {
+function createBackground(fetchHandler) {
   const handlers = {};
   const state = {};
   const fetchRequests = [];
@@ -70,7 +70,14 @@ function createBackground() {
     clearTimeout,
     fetch: async (url, options = {}) => {
       fetchRequests.push({ url, options });
-      return { ok: true, status: 200, json: async () => ({ closed_connections: 2 }) };
+      if (fetchHandler) return fetchHandler(url, options);
+      if (url.endsWith("/api/v1/proxy/verify")) {
+        return { ok: true, status: 200, json: async () => ({ verified: true }) };
+      }
+      if (url.endsWith("/api/v1/proxy/disconnect")) {
+        return { ok: true, status: 200, json: async () => ({ closed_connections: 2 }) };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
     }
   });
   const source = fs.readFileSync(path.join(__dirname, "background.js"), "utf8");
@@ -152,6 +159,45 @@ test("connection test refuses missing proxy credentials before setting proxy", (
   });
   assert.equal(response.success, false);
   assert.match(response.error, /brugernavn.*adgangskode/i);
+  assert.equal(background.proxySetCount(), 0);
+});
+
+test("connection test verifies entered credentials directly without relying on cached proxy auth", async () => {
+  const background = createBackground();
+  const response = await background.sendMessageAsync({
+    action: "test-connection",
+    payload: {
+      host: "vpn.homerouter.io",
+      port: 443,
+      username: "alice",
+      password: "a-long-proxy-password-123"
+    }
+  });
+
+  assert.deepEqual(plain(response), { success: true, credentialsVerified: true });
+  assert.equal(background.fetchRequests[0].url, "https://vpn.homerouter.io/api/v1/proxy/verify");
+  assert.equal(background.fetchRequests[1].url, "https://1.1.1.1/cdn-cgi/trace");
+  assert.equal(background.proxySetCount(), 1);
+});
+
+test("connection test rejects credentials the verification endpoint rejects", async () => {
+  const background = createBackground(async () => ({
+    ok: false,
+    status: 401,
+    json: async () => ({ error: "invalid proxy credentials" })
+  }));
+  const response = await background.sendMessageAsync({
+    action: "test-connection",
+    payload: {
+      host: "vpn.homerouter.io",
+      port: 443,
+      username: "alice",
+      password: "a-long-proxy-password-123"
+    }
+  });
+
+  assert.equal(response.success, false);
+  assert.match(response.error, /afviste brugernavn eller adgangskode/i);
   assert.equal(background.proxySetCount(), 0);
 });
 
