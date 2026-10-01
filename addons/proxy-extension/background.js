@@ -44,7 +44,7 @@ function applyProxy(host, port, callback) {
         host: host,
         port: port
       },
-      bypassList: ["localhost", "127.0.0.1"]
+      bypassList: ["localhost", "127.0.0.1", "vpn.homerouter.io"]
     }
   };
   chrome.proxy.settings.set({ value: config, scope: "regular" }, () => {

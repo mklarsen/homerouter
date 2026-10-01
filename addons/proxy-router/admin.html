@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Homerouter VPN Administration</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #07100d;
+      --panel: #0d1b16;
+      --field: #050a08;
+      --line: #244438;
+      --cyan: #38bdf8;
+      --green: #10b981;
+      --yellow: #facc15;
+      --red: #fb7185;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px 18px;
+      background-color: var(--page);
+      background-image: linear-gradient(rgba(56, 189, 248, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(250, 204, 21, 0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      color: var(--text);
+      font: 14px/1.5 "Segoe UI", sans-serif;
+    }
+
+    main { width: min(760px, 100%); margin: 0 auto; }
+
+    header {
+      position: relative;
+      margin-bottom: 20px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(13, 27, 22, 0.96);
+    }
+
+    header::before {
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      border-radius: 10px 10px 0 0;
+      background: linear-gradient(90deg, var(--cyan), #60a5fa 48%, var(--yellow));
+      content: "";
+    }
+
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 2px; font-size: 22px; }
+    h2 { margin-bottom: 14px; font-size: 16px; }
+    .sub, .label, .status, button, input, table { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+    .sub { color: var(--cyan); font-size: 11px; }
+
+    section {
+      margin-bottom: 16px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(13, 27, 22, 0.96);
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .form-row { display: grid; gap: 5px; margin-bottom: 12px; }
+    .label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+
+    input {
+      width: 100%;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--field);
+      color: var(--text);
+    }
+
+    input:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
+
+    button {
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 1px solid #176a51;
+      border-radius: 6px;
+      background: #0b2a20;
+      color: var(--green);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover { border-color: var(--green); }
+    button.secondary { border-color: var(--line); background: transparent; color: var(--muted); }
+    button.danger { border-color: #713440; background: #2b1118; color: var(--red); }
+    button:disabled { opacity: 0.55; cursor: wait; }
+
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .status { min-height: 22px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .status.error { color: var(--red); }
+    .status.success { color: var(--green); }
+    .warning { color: var(--yellow); }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-size: 11px; font-weight: 500; text-transform: uppercase; }
+    td:last-child { text-align: right; }
+    .empty { padding: 14px 8px; color: var(--muted); }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 560px) {
+      .grid { grid-template-columns: 1fr; gap: 0; }
+      body { padding: 18px 12px; }
+      header, section { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>homerouter.io</h1>
+      <div class="sub">VPN ADMINISTRATION</div>
+    </header>
+
+    <section id="loginPanel" hidden>
+      <h2>Administrator login</h2>
+      <form id="loginForm">
+        <div class="form-row">
+          <label class="label" for="adminUsername">Brugernavn</label>
+          <input id="adminUsername" name="username" autocomplete="username" required>
+        </div>
+        <div class="form-row">
+          <label class="label" for="adminPassword">Adgangskode</label>
+          <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">LOG IND</button>
+      </form>
+    </section>
+
+    <section id="passwordPanel" hidden>
+      <h2>Skift bootstrap-adgangskode</h2>
+      <p class="warning">Skift bootstrap-adgangskoden, før du administrerer proxybrugere.</p>
+      <form id="passwordForm">
+        <div class="grid">
+          <div class="form-row">
+            <label class="label" for="currentPassword">Nuværende adgangskode</label>
+            <input id="currentPassword" type="password" autocomplete="current-password" required>
+          </div>
+          <div class="form-row">
+            <label class="label" for="newAdminPassword">Ny adgangskode (min. 12 tegn)</label>
+            <input id="newAdminPassword" type="password" autocomplete="new-password" minlength="12" required>
+          </div>
+        </div>
+        <button type="submit">SKIFT ADGANGSKODE</button>
+      </form>
+    </section>
+
+    <div id="adminApp" hidden>
+      <section>
+        <div class="toolbar">
+          <h2>Proxybrugere</h2>
+          <button id="logoutButton" class="secondary" type="button">LOG UD</button>
+        </div>
+        <form id="userForm">
+          <div class="grid">
+            <div class="form-row">
+              <label class="label" for="proxyUsername">Brugernavn</label>
+              <input id="proxyUsername" autocomplete="off" required>
+            </div>
+            <div class="form-row">
+              <label class="label" for="proxyPassword">Adgangskode (min. 12 tegn)</label>
+              <input id="proxyPassword" type="password" autocomplete="new-password" minlength="12" required>
+            </div>
+          </div>
+          <button type="submit">OPRET BRUGER</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Aktive og deaktiverede brugere</h2>
+        <table>
+          <thead><tr><th>Brugernavn</th><th>Status</th><th>Handling</th></tr></thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </section>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script>
+    const loginPanel = document.getElementById("loginPanel");
+    const passwordPanel = document.getElementById("passwordPanel");
+    const adminApp = document.getElementById("adminApp");
+    const statusNode = document.getElementById("status");
+    const userRows = document.getElementById("userRows");
+
+    function showStatus(message, kind = "") {
+      statusNode.textContent = message;
+      statusNode.className = "status " + kind;
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch("/api/v1" + path, {
+        credentials: "same-origin",
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+      });
+      if (response.status === 204) return null;
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Forespørgslen fejlede.");
+      return body;
+    }
+
+    function showAdmin(mustChangePassword) {
+      loginPanel.hidden = true;
+      passwordPanel.hidden = !mustChangePassword;
+      adminApp.hidden = mustChangePassword;
+      if (!mustChangePassword) loadUsers();
+    }
+
+    async function loadUsers() {
+      try {
+        const users = await api("/users");
+        userRows.replaceChildren();
+        if (!users.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 3;
+          cell.className = "empty";
+          cell.textContent = "Ingen proxybrugere oprettet endnu.";
+          row.append(cell);
+          userRows.append(row);
+          return;
+        }
+        for (const user of users) {
+          const row = document.createElement("tr");
+          const name = document.createElement("td");
+          name.textContent = user.username;
+          const state = document.createElement("td");
+          state.textContent = user.disabled ? "Deaktiveret" : "Aktiv";
+          const action = document.createElement("td");
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = user.disabled ? "" : "secondary";
+          toggle.textContent = user.disabled ? "AKTIVÉR" : "DEAKTIVÉR";
+          toggle.addEventListener("click", async () => {
+            try {
+              await api("/users/" + encodeURIComponent(user.username), {
+                method: "PATCH",
+                body: JSON.stringify({ disabled: !user.disabled })
+              });
+              await loadUsers();
+            } catch (error) {
+              showStatus(error.message, "error");
+            }
+          });
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "danger";
+          remove.textContent = "SLET";
+          remove.addEventListener("click", async () => {
+            try {
+              await api("/users/" + encodeURIComponent(user.username), { method: "DELETE" });
+              await loadUsers();
+            } catch (error) {
+              showStatus(error.message, "error");
+            }
+          });
+          action.append(toggle, document.createTextNode(" "), remove);
+          row.append(name, state, action);
+          userRows.append(row);
+        }
+      } catch (error) {
+        showStatus(error.message, "error");
+      }
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      try {
+        const result = await api("/login", {
+          method: "POST",
+          body: JSON.stringify({ username: form.get("username"), password: form.get("password") })
+        });
+        showAdmin(result.must_change_password);
+        showStatus(result.must_change_password ? "Skift bootstrap-adgangskoden først." : "Logget ind.", "success");
+      } catch (error) {
+        showStatus(error.message, "error");
+      }
+    });
+
+    document.getElementById("passwordForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      try {
+        await api("/admin/password", {
+          method: "POST",
+          body: JSON.stringify({
+            current_password: document.getElementById("currentPassword").value,
+            new_password: document.getElementById("newAdminPassword").value
+          })
+        });
+        showAdmin(false);
+        showStatus("Administratoradgangskoden er ændret.", "success");
+        event.currentTarget.reset();
+      } catch (error) {
+        showStatus(error.message, "error");
+      }
+    });
+
+    document.getElementById("userForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      try {
+        await api("/users", {
+          method: "POST",
+          body: JSON.stringify({
+            username: document.getElementById("proxyUsername").value,
+            password: document.getElementById("proxyPassword").value
+          })
+        });
+        event.currentTarget.reset();
+        showStatus("Proxybruger oprettet.", "success");
+        await loadUsers();
+      } catch (error) {
+        showStatus(error.message, "error");
+      }
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      await api("/logout", { method: "POST" }).catch(() => {});
+      adminApp.hidden = true;
+      loginPanel.hidden = false;
+      showStatus("Logget ud.");
+    });
+
+    api("/session").then(session => showAdmin(session.must_change_password)).catch(() => {
+      loginPanel.hidden = false;
+    });
+  </script>
+</body>
+</html>

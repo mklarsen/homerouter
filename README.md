@@ -59,7 +59,7 @@ rules that rename each matching device before networkd and hostapd start.
 │   └── verify.sh                             # post-install health check
 ├── addons/
 │   ├── proxy-extension/                      # Homerouter Chromium extension
-│   ├── proxy-router/                         # source-built GOST proxy image
+│   ├── proxy-router/                         # native Go HTTP/CONNECT proxy + admin UI
 │   └── status/                               # router status addon
 ├── .env.example
 ├── CHANGELOG.md

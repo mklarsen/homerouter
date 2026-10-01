@@ -1,43 +1,42 @@
-# Homerouter GOST image
+# Homerouter Proxy
 
-This addon contains the minimal Go source needed to build a Homerouter-branded GOST derivative and publish it to GitHub Container Registry as `ghcr.io/mklarsen/homerouter-proxy`.
+This addon is an independently maintained HTTP/CONNECT forward proxy written in Go using only the standard library. It serves an administrator interface at `/vpnadm` for managing proxy credentials.
 
-## Pinned source
+## Behavior
 
-- Upstream: <https://github.com/go-gost/gost>
-- Release: `v3.3.0`
-- Commit: `cb76f63754768c7b5d68895a0d51635b0141b80f`
-- Published image: `ghcr.io/mklarsen/homerouter-proxy:3.3.0`
-- Target: `linux/amd64` (Homerouter reports `x86_64`)
+- HTTP Basic proxy authentication; unauthenticated requests receive `407 Proxy Authentication Required`.
+- HTTP forwarding and HTTPS CONNECT tunnels are supported on destination ports 80 and 443.
+- Private, loopback, link-local, multicast, reserved, and documentation destinations are rejected.
+- `/vpnadm` provides admin login, mandatory bootstrap-password rotation, and proxy-user create/disable/delete operations.
+- Credentials are salted PBKDF2-HMAC-SHA256 hashes in an atomic JSON file under `/data`.
+- The container runs as an unprivileged UID.
 
-The GOST Go source, upstream Dockerfile, module files, and license are vendored in `upstream/`. The snapshot is pinned to the commit above and omits upstream `.git`, `.github` CI/nightly workflows, tests, and release tooling. This repository has no automatic or scheduled proxy-image build; publishing is manual only.
+Set `PROXY_ADMIN_PASSWORD` to a unique secret before the first start. The default admin username is `admin`; its first successful login must change the bootstrap password. Changing the environment variable after the user database exists does not reset the password.
+
+The proxy is intended to sit behind the existing Traefik TLS router. Keep `/vpnadm` on HTTPS and do not expose the container's HTTP listener directly to the internet.
 
 ## Manual build and publish
 
-The build runs on Homerouter through the existing Docker Buildx `remote-box` builder. The local Docker CLI sends the vendored source directory to that Linux builder, which builds `upstream/Dockerfile` and pushes directly to GHCR. No image tarball or temporary source clone is needed.
-
-Grant the GitHub CLI package-write scope once, then run the manual publisher:
+Run tests locally with Go 1.26 or newer:
 
 ```powershell
-gh auth refresh -h github.com -s write:packages
-.\addons\proxy-router\Publish-GostImage.ps1
+cd addons/proxy-router
+go test ./...
+go build ./...
 ```
 
-The script verifies the upstream commit and `remote-box` endpoint, then pushes `3.3.0`, `3.3.0-cb76f63`, and `latest` tags to GHCR. GitHub creates new packages as private by default. After the first push, set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy); otherwise Homerouter cannot pull it anonymously.
+The multi-stage Dockerfile also runs the tests before building the `linux/amd64` image. Image publication is manual only; no scheduled or automatic proxy-image workflow is used.
 
-After verifying an anonymous pull from `10.10.10.1`, copy `docker-compose.ghcr.yml` to `/opt/stacks/homerouter-gost-image.yml` and switch only `vpn-proxy`:
+Use an existing GitHub CLI login with package-write access and run the publisher. It does not modify authentication scopes:
 
-```sh
-cd /opt/stacks
-docker pull ghcr.io/mklarsen/homerouter-proxy:3.3.0
-docker compose -f docker-compose.yml -f homerouter-gost-image.yml pull vpn-proxy
-docker compose -f docker-compose.yml -f homerouter-gost-image.yml up -d --no-deps vpn-proxy
+```powershell
+.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.0.0
 ```
 
-This only recreates `vpn-proxy`; it briefly interrupts proxy traffic.
+The script verifies that Buildx builder `remote-box` targets Homerouter at `10.10.10.1`, then pushes versioned and `latest` tags to GHCR. GitHub may create the package as private. Set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy) before relying on anonymous pulls from Homerouter.
 
-## Upstream credit and license
+Before changing the live Compose stack, make a backup under `/BACKUPS/copilot`. Set `PROXY_ADMIN_PASSWORD` in `/opt/stacks/.env` with mode `0600`; the overlay requires it and creates the persistent `homerouter-proxy-users` volume. When merged with the base stack, it preserves the existing network and Traefik labels while replacing the GOST command. Recreating `vpn-proxy` briefly interrupts proxy traffic.
 
-This is a Homerouter-maintained derivative image built from [GOST](https://github.com/go-gost/gost) v3.3.0; it is not an official GOST image. GOST is copyright its upstream authors and distributed under the MIT License, preserved in [`LICENSE.GOST`](LICENSE.GOST). The upstream source, release, commit, and exclusions are recorded in [`UPSTREAM.md`](UPSTREAM.md); the upstream English README is retained under `upstream/`. Homerouter's own code and configuration remain under the repository-root license.
+## Historical GOST attribution
 
-The existing proxy authentication command in the shared stack is not modified here. Replace any weak credentials with a strong unique secret before exposing the proxy publicly.
+The previous image used GOST v3.3.0. This implementation does not contain or derive from GOST source. [`UPSTREAM.md`](UPSTREAM.md) records that history, and [`LICENSE.GOST`](LICENSE.GOST) is retained for historical attribution.
