@@ -1,0 +1,21 @@
+meta {
+  name: Set Logging Level
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/settings/logging
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiToken}}
+}
+
+body:json {
+  {
+    "level": "{{logLevel}}"
+  }
+}

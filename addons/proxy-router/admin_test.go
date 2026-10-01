@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVPNAdminLoginRotationAndProxyUserAPI(t *testing.T) {
@@ -137,9 +140,22 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 		t.Fatalf("API re-enable failed: %d", updated.Code)
 	}
 	status := request(http.MethodGet, "/api/v1/status", "", "service-api-token")
-	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"active_users":1`) {
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"active_users":1`) || !strings.Contains(status.Body.String(), `"log_level":"INFO"`) {
 		t.Fatalf("API status did not report user overview: %d %s", status.Code, status.Body.String())
 	}
+	loggingSettings := request(http.MethodGet, "/api/v1/settings/logging", "", "service-api-token")
+	if loggingSettings.Code != http.StatusOK || !strings.Contains(loggingSettings.Body.String(), `"level":"INFO"`) {
+		t.Fatalf("API did not return log settings: %d %s", loggingSettings.Code, loggingSettings.Body.String())
+	}
+	setLogLevel := request(http.MethodPatch, "/api/v1/settings/logging", `{"level":"DEBUG"}`, "service-api-token")
+	if setLogLevel.Code != http.StatusOK || users.logLevel() != "DEBUG" || activeProxyLogLevelName() != "DEBUG" {
+		t.Fatalf("API did not apply log level: %d %s", setLogLevel.Code, setLogLevel.Body.String())
+	}
+	invalidLogLevel := request(http.MethodPatch, "/api/v1/settings/logging", `{"level":"TRACE"}`, "service-api-token")
+	if invalidLogLevel.Code != http.StatusBadRequest || users.logLevel() != "DEBUG" {
+		t.Fatalf("API accepted invalid log level or changed current setting: %d %s", invalidLogLevel.Code, invalidLogLevel.Body.String())
+	}
+	setActiveProxyLogLevel(defaultProxyLogLevel)
 	deleted := request(http.MethodDelete, "/api/v1/users/alice", "", "service-api-token")
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("API delete failed: %d %s", deleted.Code, deleted.Body.String())
@@ -187,5 +203,73 @@ func TestAPITokenMinimumLength(t *testing.T) {
 	}
 	if err := validateAPIToken("0123456789abcdef0123456789abcdef"); err != nil {
 		t.Fatalf("32-character API token rejected: %v", err)
+	}
+}
+
+func TestProxyTrafficLogLevelsAndRedaction(t *testing.T) {
+	var output bytes.Buffer
+	previousWriter := log.Writer()
+	previousFlags := log.Flags()
+	previousPrefix := log.Prefix()
+	log.SetOutput(&output)
+	log.SetFlags(0)
+	log.SetPrefix("")
+	defer func() {
+		log.SetOutput(previousWriter)
+		log.SetFlags(previousFlags)
+		log.SetPrefix(previousPrefix)
+		setActiveProxyLogLevel(defaultProxyLogLevel)
+	}()
+
+	if !setActiveProxyLogLevel("INFO") {
+		t.Fatal("INFO log level rejected")
+	}
+	logProxyEvent("auth_accepted", "alice", "192.0.2.10:50000", "CONNECT", "example.com:443", http.StatusOK, 0, 0, time.Millisecond)
+	if output.Len() != 0 {
+		t.Fatal("DEBUG auth event was emitted at INFO level")
+	}
+
+	logProxyEvent("http", "alice", "192.0.2.10:50000", "GET", "example.com", http.StatusOK, 0, 123, 12*time.Millisecond)
+	line := output.String()
+	for _, expected := range []string{"level=INFO", "user=\"alice\"", "target=\"example.com\"", "status=200", "downloaded_bytes=123"} {
+		if !strings.Contains(line, expected) {
+			t.Errorf("traffic log missing %q: %s", expected, line)
+		}
+	}
+	if strings.Contains(line, "password") || strings.Contains(line, "secret") || strings.Contains(line, "?") {
+		t.Fatalf("traffic log contains credential or URL detail: %s", line)
+	}
+
+	output.Reset()
+	users, err := openUserStore(filepath.Join(t.TempDir(), "users.json"), "admin", "bootstrap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &server{users: users}
+	request := httptest.NewRequest(http.MethodConnect, "https://example.com:443", nil)
+	secret := "do-not-log-this-password"
+	request.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("alice:"+secret)))
+	response := httptest.NewRecorder()
+	if _, authenticated := service.authenticateProxyUserRequest(response, request); authenticated {
+		t.Fatal("invalid proxy credentials unexpectedly authenticated")
+	}
+	if !strings.Contains(output.String(), "level=WARNING") {
+		t.Fatalf("auth failure not logged as warning: %s", output.String())
+	}
+	if strings.Contains(output.String(), secret) {
+		t.Fatal("failed proxy password was written to the traffic log")
+	}
+
+	output.Reset()
+	if !setActiveProxyLogLevel("ERROR") {
+		t.Fatal("ERROR log level rejected")
+	}
+	logProxyEvent("http", "alice", "192.0.2.10:50000", "GET", "example.com", http.StatusOK, 0, 0, 0)
+	if output.Len() != 0 {
+		t.Fatal("INFO traffic was emitted at ERROR level")
+	}
+	logProxyEvent("http", "alice", "192.0.2.10:50000", "GET", "example.com", http.StatusBadGateway, 0, 0, 0)
+	if !strings.Contains(output.String(), "level=ERROR") {
+		t.Fatalf("upstream failure not logged as error: %s", output.String())
 	}
 }

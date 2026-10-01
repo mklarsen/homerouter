@@ -106,6 +106,8 @@ func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		s.handleAdminSession(w, r)
 	case "/api/v1/status":
 		s.handleAdminStatus(w, r)
+	case "/api/v1/settings/logging":
+		s.handleLoggingSettings(w, r)
 	case "/api/v1/admin/password":
 		s.handleAdminPassword(w, r)
 	case "/api/v1/users":
@@ -191,7 +193,36 @@ func (s *server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 		"active_users":      activeUsers,
 		"disabled_users":    disabledUsers,
 		"admin_must_change": s.users.adminMustChange(),
+		"log_level":         s.users.logLevel(),
 	})
+}
+
+func (s *server) handleLoggingSettings(w http.ResponseWriter, r *http.Request) {
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		writeJSON(w, http.StatusOK, map[string]any{
+			"level":     s.users.logLevel(),
+			"available": []string{"DEBUG", "INFO", "WARNING", "ERROR"},
+		})
+	case http.MethodPatch:
+		var input struct {
+			Level string `json:"level"`
+		}
+		if !decodeJSON(w, r, &input) {
+			return
+		}
+		if err := s.users.setLogLevel(input.Level); err != nil {
+			writeAPIError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		setActiveProxyLogLevel(s.users.logLevel())
+		writeJSON(w, http.StatusOK, map[string]string{"level": s.users.logLevel()})
+	default:
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
 }
 
 func (s *server) handleAdminPassword(w http.ResponseWriter, r *http.Request) {

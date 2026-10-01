@@ -23,6 +23,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("initialize proxy user store: %v", err)
 	}
+	if !setActiveProxyLogLevel(users.logLevel()) {
+		log.Fatalf("invalid persisted proxy log level: %s", users.logLevel())
+	}
 
 	address := envOr("PROXY_LISTEN_ADDR", ":8080")
 	service := &server{

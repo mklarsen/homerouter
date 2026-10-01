@@ -1,0 +1,15 @@
+meta {
+  name: Get Logging Settings
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/settings/logging
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiToken}}
+}

@@ -10,6 +10,7 @@ This addon is an independently maintained HTTP/CONNECT forward proxy written in 
 - `/vpnadm` provides admin login, mandatory bootstrap-password rotation, and proxy-user create/disable/delete operations.
 - `/api/v1` is a versioned JSON REST API with list/create/read/update/delete user operations. Browser sessions and optional Bearer-token service authentication are supported.
 - `/api/docs` is a browser-readable API reference; `/api/v1/openapi.yaml` remains the machine-readable contract download.
+- Proxy traffic is written to Docker logs with an admin-configurable persistent level: `DEBUG`, `INFO` (default), `WARNING`, or `ERROR`.
 - `/api/v1/openapi.yaml` publishes the API contract; `bruno/` contains runnable request examples.
 - Credentials are salted PBKDF2-HMAC-SHA256 hashes in an atomic JSON file under `/data`.
 - The admin overview reports the configured host data path and active/disabled user counts.
@@ -25,7 +26,9 @@ The browser-readable guide is at `https://vpn.homerouter.io/api/docs`; the OpenA
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/v1/status` | API, storage path, and active/disabled counts |
+| `GET` | `/api/v1/status` | API, storage path, active/disabled counts, and current log level |
+| `GET` | `/api/v1/settings/logging` | Read the current persistent log level |
+| `PATCH` | `/api/v1/settings/logging` | Set the log level with `{"level":"DEBUG"}` |
 | `GET` | `/api/v1/users` | List user metadata |
 | `POST` | `/api/v1/users` | Create a user with `{"username":"alice","password":"<secret>"}`; duplicate names return `409` |
 | `GET` | `/api/v1/users/{username}` | Read one user's metadata |
@@ -33,6 +36,8 @@ The browser-readable guide is at `https://vpn.homerouter.io/api/docs`; the OpenA
 | `DELETE` | `/api/v1/users/{username}` | Delete a user |
 
 Passwords and hashes are never returned. Current service authentication is a single static Bearer token; Authentik/OIDC is not implemented yet. It can be added later as a token-validation provider while keeping these resource routes stable.
+
+`INFO` is the default and logs completed HTTP/CONNECT traffic; CONNECT also gets an immediate open line so long tunnels are visible. `DEBUG` adds successful auth events, `WARNING` shows denied auth and client errors, and `ERROR` shows upstream/server failures. Traffic lines include username, remote IP, method, destination host (not URL path/query), status, byte counts, and duration. Passwords, proxy auth headers, and request/response bodies are never logged. Follow them with `docker compose logs -f vpn-proxy`.
 
 ## Manual build and publish
 
@@ -49,7 +54,7 @@ The multi-stage Dockerfile also runs the tests before building the `linux/amd64`
 Use an existing GitHub CLI login with package-write access and run the publisher. It does not modify authentication scopes:
 
 ```powershell
-.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.1
+.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.2
 ```
 
 The script verifies that Buildx builder `remote-box` targets Homerouter at `10.10.10.1`, then pushes versioned and `latest` tags to GHCR. GitHub may create the package as private. Set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy) before relying on anonymous pulls from Homerouter.

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -45,6 +46,7 @@ type diskState struct {
 	AdminUsername   string               `json:"admin_username"`
 	AdminPassword   passwordHash         `json:"admin_password"`
 	AdminMustChange bool                 `json:"admin_must_change_password"`
+	LogLevel        string               `json:"log_level,omitempty"`
 	ProxyUsers      map[string]proxyUser `json:"proxy_users"`
 }
 
@@ -99,6 +101,12 @@ func openUserStore(path, adminUsername, bootstrapPassword string) (*userStore, e
 		if store.state.ProxyUsers == nil {
 			store.state.ProxyUsers = make(map[string]proxyUser)
 		}
+		if store.state.LogLevel == "" {
+			store.state.LogLevel = defaultProxyLogLevel
+			if err := store.saveLocked(); err != nil {
+				return nil, err
+			}
+		}
 		if err := os.Chmod(path, 0600); err != nil {
 			return nil, fmt.Errorf("secure proxy user store: %w", err)
 		}
@@ -118,6 +126,7 @@ func openUserStore(path, adminUsername, bootstrapPassword string) (*userStore, e
 		AdminUsername:   adminUsername,
 		AdminPassword:   adminHash,
 		AdminMustChange: true,
+		LogLevel:        defaultProxyLogLevel,
 		ProxyUsers:      make(map[string]proxyUser),
 	}
 	if err := store.saveLocked(); err != nil {
@@ -171,6 +180,30 @@ func (s *userStore) adminMustChange() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state.AdminMustChange
+}
+
+func (s *userStore) logLevel() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.state.LogLevel == "" {
+		return defaultProxyLogLevel
+	}
+	return s.state.LogLevel
+}
+
+func (s *userStore) setLogLevel(level string) error {
+	if _, ok := parseProxyLogLevel(level); !ok {
+		return errors.New("log level must be DEBUG, INFO, WARNING, or ERROR")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old := s.state.LogLevel
+	s.state.LogLevel = strings.ToUpper(strings.TrimSpace(level))
+	if err := s.saveLocked(); err != nil {
+		s.state.LogLevel = old
+		return err
+	}
+	return nil
 }
 
 func (s *userStore) authenticateAdmin(username, password string) bool {

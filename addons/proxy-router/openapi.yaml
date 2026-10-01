@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Homerouter Proxy API
-  version: 1.2.1
+  version: 1.2.2
   description: >-
     HTTPS JSON API for proxy-user administration. Browser clients may use the
     administrator session cookie. Trusted backend services may use a configured
@@ -38,7 +38,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
   /api/v1/session:
     get:
-      summary: Read the current browser administrator session
+                                log_level: { $ref: '#/components/schemas/LogLevel' }
       security:
         - adminSession: []
       responses:
@@ -84,7 +84,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [api_base, data_file, data_host_path, active_users, disabled_users]
+                required: [api_base, data_file, data_host_path, active_users, disabled_users, log_level]
                 properties:
                   api_base: { type: string }
                   data_file: { type: string }
@@ -92,6 +92,47 @@ paths:
                   active_users: { type: integer }
                   disabled_users: { type: integer }
                   admin_must_change: { type: boolean }
+                  log_level: { $ref: '#/components/schemas/LogLevel' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/settings/logging:
+    get:
+      summary: Read the persistent Docker log level
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      responses:
+        '200':
+          description: Current level and allowed values
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [level, available]
+                properties:
+                  level: { $ref: '#/components/schemas/LogLevel' }
+                  available:
+                    type: array
+                    items: { $ref: '#/components/schemas/LogLevel' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    patch:
+      summary: Persist and immediately apply a Docker log level
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [level]
+              properties:
+                level: { $ref: '#/components/schemas/LogLevel' }
+      responses:
+        '200': { description: New log level applied and persisted }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /api/v1/users:
@@ -200,6 +241,9 @@ components:
       scheme: bearer
       description: Requires PROXY_API_TOKEN to be configured on the proxy.
   schemas:
+    LogLevel:
+      type: string
+      enum: [DEBUG, INFO, WARNING, ERROR]
     ProxyUser:
       type: object
       required: [username, disabled, created]
