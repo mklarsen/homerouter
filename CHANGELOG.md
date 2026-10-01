@@ -18,6 +18,7 @@ as the release notes. Merges without a new version heading do not release.
 - Add a browser-readable API reference while preserving the OpenAPI YAML download.
 - Fix proxy-user create feedback, guard against duplicate submissions, and report duplicate usernames as HTTP 409.
 - Add INFO/WARNING/ERROR/DEBUG traffic logs with persistent admin/API log-level control.
+- Show live in-flight proxy users and connections in the admin overview and user list.
 - Bind-mount proxy user data at `/opt/stacks/proxy-data` and preserve the existing user store during migration.
 - Retain upstream GOST attribution; replace the vendored GOST implementation with Homerouter-owned proxy code.
 - Bump the proxy extension to `1.3.7`, bypass `vpn.homerouter.io` to prevent the admin UI from proxy-looping, and require verified proxy credentials.

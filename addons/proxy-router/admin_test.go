@@ -101,7 +101,7 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 	if err := users.changeAdminPassword("bootstrap-password", "rotated-admin-password-123"); err != nil {
 		t.Fatal(err)
 	}
-	service := &server{users: users, sessions: newSessionStore(), apiToken: "service-api-token"}
+	service := &server{users: users, sessions: newSessionStore(), activity: newProxyActivity(), apiToken: "service-api-token"}
 	request := func(method, path, body string, token string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Host = "vpn.homerouter.io"
@@ -123,12 +123,14 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("API create failed: %d %s", created.Code, created.Body.String())
 	}
+	finishActivity := service.activity.begin("alice")
+	defer finishActivity()
 	duplicate := request(http.MethodPost, "/api/v1/users", `{"username":"alice","password":"another-proxy-password-456"}`, "service-api-token")
 	if duplicate.Code != http.StatusConflict {
 		t.Fatalf("duplicate API create should return 409: %d %s", duplicate.Code, duplicate.Body.String())
 	}
 	read := request(http.MethodGet, "/api/v1/users/alice", "", "service-api-token")
-	if read.Code != http.StatusOK || strings.Contains(read.Body.String(), "password") {
+	if read.Code != http.StatusOK || strings.Contains(read.Body.String(), "password") || !strings.Contains(read.Body.String(), `"active_connections":1`) {
 		t.Fatalf("API read failed or leaked credential data: %d %s", read.Code, read.Body.String())
 	}
 	updated := request(http.MethodPatch, "/api/v1/users/alice", `{"password":"second-proxy-password-456","disabled":true}`, "service-api-token")
@@ -140,7 +142,7 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 		t.Fatalf("API re-enable failed: %d", updated.Code)
 	}
 	status := request(http.MethodGet, "/api/v1/status", "", "service-api-token")
-	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"active_users":1`) || !strings.Contains(status.Body.String(), `"log_level":"INFO"`) {
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"active_users":1`) || !strings.Contains(status.Body.String(), `"log_level":"INFO"`) || !strings.Contains(status.Body.String(), `"active_proxy_users":1`) || !strings.Contains(status.Body.String(), `"active_proxy_connections":1`) {
 		t.Fatalf("API status did not report user overview: %d %s", status.Code, status.Body.String())
 	}
 	loggingSettings := request(http.MethodGet, "/api/v1/settings/logging", "", "service-api-token")
@@ -156,6 +158,11 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 		t.Fatalf("API accepted invalid log level or changed current setting: %d %s", invalidLogLevel.Code, invalidLogLevel.Body.String())
 	}
 	setActiveProxyLogLevel(defaultProxyLogLevel)
+	finishActivity()
+	status = request(http.MethodGet, "/api/v1/status", "", "service-api-token")
+	if !strings.Contains(status.Body.String(), `"active_proxy_users":0`) || !strings.Contains(status.Body.String(), `"active_proxy_connections":0`) {
+		t.Fatalf("closed activity still reported active: %s", status.Body.String())
+	}
 	deleted := request(http.MethodDelete, "/api/v1/users/alice", "", "service-api-token")
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("API delete failed: %d %s", deleted.Code, deleted.Body.String())

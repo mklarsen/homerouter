@@ -31,6 +31,7 @@ func main() {
 	service := &server{
 		users:        users,
 		sessions:     newSessionStore(),
+		activity:     newProxyActivity(),
 		apiToken:     apiToken,
 		dataHostPath: envOr("PROXY_DATA_HOST_PATH", "Docker-managed volume"),
 	}

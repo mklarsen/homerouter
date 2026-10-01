@@ -196,6 +196,10 @@
             <span class="label">Proxybrugere</span>
             <output id="userCounts" class="overview-value">Indlæser…</output>
           </div>
+          <div class="overview-item">
+            <span class="label">Bruger proxy lige nu</span>
+            <output id="liveProxyUsers" class="overview-value">Indlæser…</output>
+          </div>
         </div>
       </section>
 
@@ -242,7 +246,7 @@
           <button id="refreshUsersButton" class="secondary" type="button">GENINDLÆS</button>
         </div>
         <table>
-          <thead><tr><th>Brugernavn</th><th>Status</th><th>Handling</th></tr></thead>
+          <thead><tr><th>Brugernavn</th><th>Status</th><th>Aktiv lige nu</th><th>Handling</th></tr></thead>
           <tbody id="userRows"></tbody>
         </table>
       </section>
@@ -257,6 +261,8 @@
     const adminApp = document.getElementById("adminApp");
     const statusNode = document.getElementById("status");
     const userRows = document.getElementById("userRows");
+    let activityRefreshTimer = null;
+    let activityRefreshBusy = false;
 
     function showStatus(message, kind = "") {
       statusNode.textContent = message;
@@ -287,6 +293,10 @@
         loadOverview();
         loadLogLevel();
         loadUsers().catch(error => showStatus(error.message, "error"));
+        startActivityRefresh();
+      } else if (activityRefreshTimer) {
+        clearInterval(activityRefreshTimer);
+        activityRefreshTimer = null;
       }
     }
 
@@ -298,9 +308,26 @@
         document.getElementById("dataFilePath").textContent = overview.data_file;
         document.getElementById("userCounts").textContent =
           `${overview.active_users} aktive / ${overview.disabled_users} deaktiverede`;
+        document.getElementById("liveProxyUsers").textContent =
+          `${overview.active_proxy_users} brugere / ${overview.active_proxy_connections} forbindelser`;
       } catch (error) {
         showStatus(error.message, "error");
       }
+    }
+
+    function startActivityRefresh() {
+      if (activityRefreshTimer) return;
+      activityRefreshTimer = setInterval(async () => {
+        if (activityRefreshBusy || adminApp.hidden) return;
+        activityRefreshBusy = true;
+        try {
+          await Promise.all([loadOverview(), loadUsers()]);
+        } catch (error) {
+          showStatus("Live-status kunne ikke opdateres: " + error.message, "error");
+        } finally {
+          activityRefreshBusy = false;
+        }
+      }, 5000);
     }
 
     async function loadLogLevel() {
@@ -335,7 +362,7 @@
         if (!users.length) {
           const row = document.createElement("tr");
           const cell = document.createElement("td");
-          cell.colSpan = 3;
+          cell.colSpan = 4;
           cell.className = "empty";
           cell.textContent = "Ingen proxybrugere oprettet endnu.";
           row.append(cell);
@@ -348,6 +375,10 @@
           name.textContent = user.username;
           const state = document.createElement("td");
           state.textContent = user.disabled ? "Deaktiveret" : "Aktiv";
+          const activity = document.createElement("td");
+          activity.textContent = user.active_connections > 0
+            ? `I brug · ${user.active_connections}`
+            : "Ingen trafik";
           const action = document.createElement("td");
           const toggle = document.createElement("button");
           toggle.type = "button";
@@ -377,7 +408,7 @@
             }
           });
           action.append(toggle, document.createTextNode(" "), remove);
-          row.append(name, state, action);
+          row.append(name, state, activity, action);
           userRows.append(row);
         }
       } catch (error) {
@@ -459,14 +490,18 @@
 
     document.getElementById("refreshUsersButton").addEventListener("click", async () => {
       try {
-        await loadUsers();
-        showStatus("Brugerlisten er opdateret.", "success");
+        await Promise.all([loadOverview(), loadUsers()]);
+        showStatus("Bruger- og live-status er opdateret.", "success");
       } catch (error) {
         showStatus("Brugerlisten kunne ikke opdateres: " + error.message, "error");
       }
     });
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
+      if (activityRefreshTimer) {
+        clearInterval(activityRefreshTimer);
+        activityRefreshTimer = null;
+      }
       await api("/logout", { method: "POST" }).catch(() => {});
       adminApp.hidden = true;
       loginPanel.hidden = false;
