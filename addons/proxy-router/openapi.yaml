@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: Homerouter Proxy API
+  version: 1.1.0
+  description: >-
+    HTTPS JSON API for proxy-user administration. Browser clients may use the
+    administrator session cookie. Trusted backend services may use a configured
+    PROXY_API_TOKEN as a Bearer token. Do not expose a service token to browser code.
+servers:
+  - url: https://vpn.homerouter.io
+paths:
+  /api/v1/openapi.yaml:
+    get:
+      summary: Download the OpenAPI contract
+      responses:
+        '200':
+          description: OpenAPI YAML document
+          content:
+            application/yaml:
+              schema: { type: string }
+  /api/v1/login:
+    post:
+      summary: Create an administrator browser session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Session created; sets the Secure HttpOnly homerouter_admin cookie
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/session:
+    get:
+      summary: Read the current browser administrator session
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Session state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username: { type: string }
+                  must_change_password: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/admin/password:
+    post:
+      summary: Change the administrator password
+      security:
+        - adminSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string, format: password }
+                new_password: { type: string, minLength: 12, format: password }
+      responses:
+        '200': { description: Password changed }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/status:
+    get:
+      summary: Read proxy administration overview
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      responses:
+        '200':
+          description: API, storage, and user counts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [api_base, data_file, data_host_path, active_users, disabled_users]
+                properties:
+                  api_base: { type: string }
+                  data_file: { type: string }
+                  data_host_path: { type: string }
+                  active_users: { type: integer }
+                  disabled_users: { type: integer }
+                  admin_must_change: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/users:
+    get:
+      summary: List proxy users
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      responses:
+        '200':
+          description: User metadata only; password hashes are never returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProxyUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a proxy user
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, pattern: '^[a-zA-Z0-9._-]{1,64}$' }
+                password: { type: string, minLength: 12, format: password }
+      responses:
+        '201': { description: User created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/users/{username}:
+    parameters:
+      - name: username
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Read one proxy user
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      responses:
+        '200':
+          description: User metadata only
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProxyUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      summary: Update a proxy user's password, disabled state, or both
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                password: { type: string, minLength: 12, format: password }
+                disabled: { type: boolean }
+      responses:
+        '204': { description: User updated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Delete a proxy user
+      security:
+        - adminSession: []
+        - serviceBearer: []
+      responses:
+        '204': { description: User deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/logout:
+    post:
+      summary: End an administrator browser session
+      security:
+        - adminSession: []
+      responses:
+        '204': { description: Session ended }
+components:
+  securitySchemes:
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: homerouter_admin
+    serviceBearer:
+      type: http
+      scheme: bearer
+      description: Requires PROXY_API_TOKEN to be configured on the proxy.
+  schemas:
+    ProxyUser:
+      type: object
+      required: [username, disabled, created]
+      properties:
+        username: { type: string }
+        disabled: { type: boolean }
+        created: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request or validation failure
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid administrator credentials
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Bootstrap administrator password must be changed first
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Proxy user not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

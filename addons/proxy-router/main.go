@@ -12,6 +12,11 @@ import (
 )
 
 func main() {
+	apiToken := os.Getenv("PROXY_API_TOKEN")
+	if err := validateAPIToken(apiToken); err != nil {
+		log.Fatal(err)
+	}
+
 	dataFile := envOr("PROXY_DATA_FILE", "/data/users.json")
 	adminUsername := envOr("PROXY_ADMIN_USERNAME", "admin")
 	users, err := openUserStore(dataFile, adminUsername, os.Getenv("PROXY_ADMIN_PASSWORD"))
@@ -20,7 +25,12 @@ func main() {
 	}
 
 	address := envOr("PROXY_LISTEN_ADDR", ":8080")
-	service := &server{users: users, sessions: newSessionStore()}
+	service := &server{
+		users:        users,
+		sessions:     newSessionStore(),
+		apiToken:     apiToken,
+		dataHostPath: envOr("PROXY_DATA_HOST_PATH", "Docker-managed volume"),
+	}
 	httpServer := &http.Server{
 		Addr:              address,
 		Handler:           service,

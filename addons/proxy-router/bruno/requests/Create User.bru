@@ -1,0 +1,22 @@
+meta {
+  name: Create User
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiToken}}
+}
+
+body:json {
+  {
+    "username": "new-user",
+    "password": "{{proxyUserPassword}}"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "Homerouter Proxy API",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}
