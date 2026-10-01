@@ -25,7 +25,10 @@ func TestVPNAdminLoginRotationAndProxyUserAPI(t *testing.T) {
 	pageRequest.Host = "vpn.homerouter.io"
 	page := httptest.NewRecorder()
 	service.ServeHTTP(page, pageRequest)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "VPN ADMINISTRATION") {
+	pageBody := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(pageBody, "PROXY-ADMINISTRATION") ||
+		!strings.Contains(pageBody, "Aktive og deaktiverede brugere") ||
+		!strings.Contains(pageBody, "Docker-logniveau") || !strings.Contains(pageBody, "Brug af API'et") {
 		t.Fatalf("admin page not served: status %d", page.Code)
 	}
 
