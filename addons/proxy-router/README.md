@@ -27,7 +27,7 @@ The browser-readable guide is at `https://vpn.homerouter.io/api/docs`; the OpenA
 | --- | --- | --- |
 | `GET` | `/api/v1/status` | API, storage path, and active/disabled counts |
 | `GET` | `/api/v1/users` | List user metadata |
-| `POST` | `/api/v1/users` | Create a user with `{"username":"alice","password":"<secret>"}` |
+| `POST` | `/api/v1/users` | Create a user with `{"username":"alice","password":"<secret>"}`; duplicate names return `409` |
 | `GET` | `/api/v1/users/{username}` | Read one user's metadata |
 | `PATCH` | `/api/v1/users/{username}` | Update `password`, `disabled`, or both |
 | `DELETE` | `/api/v1/users/{username}` | Delete a user |
@@ -49,7 +49,7 @@ The multi-stage Dockerfile also runs the tests before building the `linux/amd64`
 Use an existing GitHub CLI login with package-write access and run the publisher. It does not modify authentication scopes:
 
 ```powershell
-.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.0
+.\addons\proxy-router\Publish-ProxyImage.ps1 -Version 1.2.1
 ```
 
 The script verifies that Buildx builder `remote-box` targets Homerouter at `10.10.10.1`, then pushes versioned and `latest` tags to GHCR. GitHub may create the package as private. Set `homerouter-proxy` to **Public** in [GitHub Packages](https://github.com/users/mklarsen/packages/container/package/homerouter-proxy) before relying on anonymous pulls from Homerouter.

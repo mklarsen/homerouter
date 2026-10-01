@@ -20,6 +20,7 @@ const passwordIterations = 310000
 
 var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,64}$`)
 var errProxyUserNotFound = errors.New("proxy user not found")
+var errProxyUserAlreadyExists = errors.New("proxy user already exists")
 
 type passwordHash struct {
 	Salt       string `json:"salt"`
@@ -265,7 +266,7 @@ func (s *userStore) createProxyUser(username, password string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.state.ProxyUsers[username]; exists {
-		return errors.New("proxy user already exists")
+		return errProxyUserAlreadyExists
 	}
 	s.state.ProxyUsers[username] = proxyUser{
 		Username: username,
