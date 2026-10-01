@@ -24,7 +24,7 @@ The extension requires a proxy password of at least 12 characters. Credentials a
 
 ## Releases
 
-The manifest version is the source of truth for the release title and ZIP filename. For example, manifest version `1.4.0` is published as `homerouter.io 1.4.0` with the asset `homerouter-extension-1.4.0.zip` and tag `extension-v1.4.0`. Packaged extension changes require a SemVer bump and a matching entry in this directory's `CHANGELOG.md`.
+The manifest version is the source of truth for the release title and ZIP filename. For example, manifest version `1.4.0` is published as `homerouter.io Browser Extension 1.4.0` with the asset `homerouter-extension-1.4.0.zip` and tag `extension-v1.4.0`. Packaged extension changes require a SemVer bump and a matching entry in this directory's `CHANGELOG.md`.
 
 Merges to `main` that change packaged extension files publish a release automatically. Extension releases are not marked as the repository's latest release, which remains reserved for the Homerouter router installer.
 
@@ -51,7 +51,7 @@ Merges to `main` that change packaged extension files publish a release automati
 
 - The extension version is defined in `manifest.json`; the popup reads it dynamically.
 - Run the extension tests with `node --test background.test.cjs` from this directory.
-- Packaged extension changes must bump the manifest version and add matching notes to `CHANGELOG.md`. Merging those changes to `main` publishes a ZIP named `homerouter-extension-<version>.zip` in a GitHub release titled `homerouter.io <version>`.
+- Packaged extension changes must bump the manifest version and add matching notes to `CHANGELOG.md`. Merging those changes to `main` publishes a ZIP named `homerouter-extension-<version>.zip` in a GitHub release titled `homerouter.io Browser Extension <version>`.
 - Extension release tags use the `extension-v<version>` namespace and are not marked as the repository's latest release; the router installer continues to use the latest router release.
 - Never commit real proxy credentials.
 

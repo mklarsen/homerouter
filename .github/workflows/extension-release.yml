@@ -1,4 +1,4 @@
-name: proxy extension release
+name: homerouter.io browser extension release
 
 on:
   push:
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   release:
     if: github.ref == 'refs/heads/main'
-    name: package & publish
+    name: package & publish extension
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -122,7 +122,7 @@ jobs:
             --method POST \
             -F "tag_name=$TAG" \
             -F "target_commitish=$GITHUB_SHA" \
-            -F "name=homerouter.io $VERSION" \
+            -F "name=homerouter.io Browser Extension $VERSION" \
             -F "body=$notes" \
             -F draft=false \
             -F prerelease=false \
