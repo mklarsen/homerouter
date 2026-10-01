@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <style>
@@ -311,9 +311,9 @@
   <div class="header-bar">
     <div id="connectionBadge" class="badge offline">
       <span id="statusDot" class="dot"></span>
-      <span id="statusText">TUNNEL OFF</span>
+      <span id="statusText">DISCONNECTED</span>
     </div>
-    <button id="toggleSettings" class="settings-btn" title="Konfiguration">⚙</button>
+    <button id="toggleSettings" class="settings-btn" title="Settings">⚙</button>
   </div>
 
   <h1>homerouter.io</h1>
@@ -329,19 +329,19 @@
       <input type="number" id="cfgPort" placeholder="443">
     </div>
     <div class="form-group">
-      <label>Brugernavn</label>
-      <input type="text" id="cfgUser" placeholder="Brugernavn" required>
+      <label for="cfgUser">Username</label>
+      <input type="text" id="cfgUser" placeholder="Username" required>
     </div>
     <div class="form-group">
-      <label>Adgangskode</label>
-      <input type="password" id="cfgPass" placeholder="Adgangskode (min. 12 tegn)" minlength="12" required>
+      <label for="cfgPass">Password</label>
+      <input type="password" id="cfgPass" placeholder="Password (at least 12 characters)" minlength="12" required>
     </div>
-    <button id="saveSettingsBtn" class="save-btn">GEM &amp; TEST</button>
+    <button id="saveSettingsBtn" class="save-btn">SAVE &amp; TEST</button>
     <div id="settingsFeedback"></div>
   </div>
 
   <div class="btn-frame">
-    <button id="toggleBtn" class="action-btn disconnected">TILSLUT TUNNEL</button>
+    <button id="toggleBtn" class="action-btn disconnected">CONNECT TUNNEL</button>
   </div>
 
   <hr>

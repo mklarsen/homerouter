@@ -21,6 +21,7 @@ Features:
 - Browser-level proxy control without changing system-wide network settings.
 - Direct credential verification over HTTPS before credentials are saved.
 - Clear connection status and actionable error messages.
+- A green ring around the toolbar icon while connected; the existing icon returns when disconnected.
 - Configurable proxy host and port for self-hosted deployments.
 - Optional server-side closure of active requests and tunnels when disconnecting.
 - Local Chrome storage for proxy configuration.
