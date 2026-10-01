@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -123,7 +124,8 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("API create failed: %d %s", created.Code, created.Body.String())
 	}
-	finishActivity := service.activity.begin("alice")
+	proxyContext, cancelActivity := context.WithCancel(context.Background())
+	finishActivity := service.activity.begin("alice", cancelActivity)
 	defer finishActivity()
 	duplicate := request(http.MethodPost, "/api/v1/users", `{"username":"alice","password":"another-proxy-password-456"}`, "service-api-token")
 	if duplicate.Code != http.StatusConflict {
@@ -158,6 +160,16 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 		t.Fatalf("API accepted invalid log level or changed current setting: %d %s", invalidLogLevel.Code, invalidLogLevel.Body.String())
 	}
 	setActiveProxyLogLevel(defaultProxyLogLevel)
+	disconnect := request(http.MethodPost, "/api/v1/proxy/disconnect", `{"username":"alice","password":"second-proxy-password-456"}`, "")
+	if disconnect.Code != http.StatusOK || !strings.Contains(disconnect.Body.String(), `"closed_connections":1`) {
+		t.Fatalf("proxy user disconnect failed: %d %s", disconnect.Code, disconnect.Body.String())
+	}
+	select {
+	case <-proxyContext.Done():
+	default:
+		t.Fatal("disconnect API did not cancel the user's active proxy context")
+	}
+	cancelActivity()
 	finishActivity()
 	status = request(http.MethodGet, "/api/v1/status", "", "service-api-token")
 	if !strings.Contains(status.Body.String(), `"active_proxy_users":0`) || !strings.Contains(status.Body.String(), `"active_proxy_connections":0`) {
@@ -210,6 +222,50 @@ func TestAPITokenMinimumLength(t *testing.T) {
 	}
 	if err := validateAPIToken("0123456789abcdef0123456789abcdef"); err != nil {
 		t.Fatalf("32-character API token rejected: %v", err)
+	}
+}
+
+func TestProxyDisconnectAcceptsExtensionOriginAndUserCredentials(t *testing.T) {
+	users, err := openUserStore(filepath.Join(t.TempDir(), "users.json"), "admin", "bootstrap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := users.changeAdminPassword("bootstrap", "rotated-admin-password-123"); err != nil {
+		t.Fatal(err)
+	}
+	if err := users.createProxyUser("alice", "proxy-user-password-123"); err != nil {
+		t.Fatal(err)
+	}
+	service := &server{users: users, sessions: newSessionStore(), activity: newProxyActivity()}
+	ctx, cancel := context.WithCancel(context.Background())
+	finish := service.activity.begin("alice", cancel)
+	defer finish()
+
+	extensionOrigin := "chrome-extension://abcdefghijklmnopabcdefghijklmnop"
+	preflight := httptest.NewRequest(http.MethodOptions, "/api/v1/proxy/disconnect", nil)
+	preflight.Host = "vpn.homerouter.io"
+	preflight.Header.Set("Origin", extensionOrigin)
+	preflight.Header.Set("Access-Control-Request-Method", "POST")
+	preflightResponse := httptest.NewRecorder()
+	service.ServeHTTP(preflightResponse, preflight)
+	if preflightResponse.Code != http.StatusNoContent || preflightResponse.Header().Get("Access-Control-Allow-Origin") != extensionOrigin {
+		t.Fatalf("extension preflight failed: %d headers=%v", preflightResponse.Code, preflightResponse.Header())
+	}
+
+	body := bytes.NewBufferString(`{"username":"alice","password":"proxy-user-password-123"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/proxy/disconnect", body)
+	request.Host = "vpn.homerouter.io"
+	request.Header.Set("Origin", extensionOrigin)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	service.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"closed_connections":1`) {
+		t.Fatalf("extension disconnect failed: %d %s", response.Code, response.Body.String())
+	}
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("extension disconnect did not cancel the active connection")
 	}
 }
 

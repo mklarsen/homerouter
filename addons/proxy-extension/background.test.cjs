@@ -7,6 +7,7 @@ const vm = require("node:vm");
 function createBackground() {
   const handlers = {};
   const state = {};
+  const fetchRequests = [];
   let proxySetCount = 0;
   let proxyClearCount = 0;
 
@@ -67,7 +68,10 @@ function createBackground() {
     URL,
     setTimeout,
     clearTimeout,
-    fetch: async () => ({ ok: true, status: 200 })
+    fetch: async (url, options = {}) => {
+      fetchRequests.push({ url, options });
+      return { ok: true, status: 200, json: async () => ({ closed_connections: 2 }) };
+    }
   });
   const source = fs.readFileSync(path.join(__dirname, "background.js"), "utf8");
   vm.runInContext(source, context, { filename: "background.js" });
@@ -80,6 +84,11 @@ function createBackground() {
       handlers.message.listener(message, {}, value => { response = value; });
       return response;
     },
+    sendMessageAsync(message) {
+      return new Promise(resolve => handlers.message.listener(message, {}, resolve));
+    },
+    fetchRequests,
+    state,
     proxySetCount: () => proxySetCount,
     proxyClearCount: () => proxyClearCount
   };
@@ -161,4 +170,26 @@ test("temporary test credentials are limited to the test request", () => {
     plain(selectCredentials({ url: "https://example.com/" }, temporary, testURL, saved)),
     saved
   );
+});
+
+test("explicit disconnect sends credentials over HTTPS and returns server close count", async () => {
+  const background = createBackground();
+  const previousClearCount = background.proxyClearCount();
+  const response = await background.sendMessageAsync({
+    action: "disconnect",
+    payload: { username: "alice", password: "a-long-proxy-password-123" }
+  });
+
+  assert.equal(background.proxyClearCount(), previousClearCount + 1);
+  assert.equal(background.state.connected, false);
+  assert.equal(response.status, "disconnected");
+  assert.equal(response.remoteCloseConfirmed, true);
+  assert.equal(response.closedConnections, 2);
+  assert.equal(background.fetchRequests.length, 1);
+  assert.equal(background.fetchRequests[0].url, "https://vpn.homerouter.io/api/v1/proxy/disconnect");
+  assert.equal(background.fetchRequests[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(background.fetchRequests[0].options.body), {
+    username: "alice",
+    password: "a-long-proxy-password-123"
+  });
 });

@@ -90,6 +90,7 @@
         <tbody>
           <tr><td class="method">GET</td><td><code>/status</code></td><td>API-, datafil-, logniveau- og live trafikoverblik</td><td><code>200</code></td></tr>
           <tr><td class="method">GET/PATCH</td><td><code>/settings/logging</code></td><td>Læs og ændr persistent Docker-logniveau</td><td><code>200</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/proxy/disconnect</code></td><td>Luk denne brugers aktive forbindelser</td><td><code>200</code></td></tr>
           <tr><td class="method">GET</td><td><code>/users</code></td><td>Brugermetadata og aktive requests/tunneler</td><td><code>200</code></td></tr>
           <tr><td class="method">POST</td><td><code>/users</code></td><td>Opret proxybruger; eksisterende navn giver <code>409</code></td><td><code>201</code> / <code>409</code></td></tr>
           <tr><td class="method">GET</td><td><code>/users/{username}</code></td><td>Læs én brugers metadata</td><td><code>200</code></td></tr>
@@ -106,6 +107,12 @@
       <p>Gyldige niveauer: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>. Loglinjer indeholder bruger, remote IP, target host, status, bytes og varighed; passwords, auth-headere, URL paths og request bodies logges ikke.</p>
       <p>Følg Docker-output med <code>docker compose logs -f vpn-proxy</code>.</p>
       <p>Proxyoversigten opdaterer live-brugere og forbindelser hvert femte sekund. En bruger tælles kun, mens en HTTP-request behandles eller en CONNECT-tunnel er åben; det er ikke en vedvarende login-session.</p>
+    </section>
+
+    <section>
+      <h2>Afbryd proxyforbindelser</h2>
+      <p>Extensionens <strong>AFBRYD TUNNEL</strong> sender proxy-brugernavn og -password over HTTPS til <code>POST /api/v1/proxy/disconnect</code>. Serveren annullerer alle aktive requests og tunneler for brugernavnet. Hvis samme bruger er sat op på flere enheder, afbrydes de alle.</p>
+      <p class="muted">Et tvunget browser-/OS-stop kan ikke sende afbrydelsesbeskeden; TCP-forbindelserne lukker i stedet ved normal socket-oprydning.</p>
     </section>
 
     <section>

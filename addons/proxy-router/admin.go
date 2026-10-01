@@ -80,6 +80,19 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimSuffix(r.URL.Path, "/")
+	if path == "/api/v1/proxy/disconnect" {
+		if !allowProxyDisconnectOrigin(w, r) {
+			writeAPIError(w, http.StatusForbidden, "origin rejected")
+			return
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		s.handleProxyDisconnect(w, r)
+		return
+	}
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -89,7 +102,6 @@ func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := strings.TrimSuffix(r.URL.Path, "/")
 	switch path {
 	case "/api/v1/openapi.yaml":
 		if r.Method != http.MethodGet {
@@ -120,6 +132,44 @@ func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		writeAPIError(w, http.StatusNotFound, "not found")
 	}
+}
+
+func allowProxyDisconnectOrigin(w http.ResponseWriter, r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" || sameOrigin(r) {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme != "chrome-extension" || parsed.Host == "" {
+		return false
+	}
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Add("Vary", "Origin")
+	return true
+}
+
+func (s *server) handleProxyDisconnect(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var input struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	if !s.users.authenticateProxy(input.Username, input.Password) {
+		writeAPIError(w, http.StatusUnauthorized, "invalid proxy credentials")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"username":          input.Username,
+		"closed_connections": s.activity.disconnect(input.Username),
+	})
 }
 
 func (s *server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {

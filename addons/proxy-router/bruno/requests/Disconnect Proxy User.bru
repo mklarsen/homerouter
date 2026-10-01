@@ -1,0 +1,18 @@
+meta {
+  name: Disconnect Proxy User
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/proxy/disconnect
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "{{proxyUsername}}",
+    "password": "{{proxyUserPassword}}"
+  }
+}

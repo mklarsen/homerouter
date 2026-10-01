@@ -81,6 +81,34 @@ function clearProxy(callback) {
   });
 }
 
+async function requestProxyDisconnect(credentials) {
+  if (!hasProxyCredentials(credentials)) {
+    return { remoteCloseConfirmed: false, closedConnections: 0 };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch("https://vpn.homerouter.io/api/v1/proxy/disconnect", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: credentials.username, password: credentials.password }),
+      signal: controller.signal
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) return { remoteCloseConfirmed: false, closedConnections: 0 };
+    return {
+      remoteCloseConfirmed: true,
+      closedConnections: Number(result.closed_connections) || 0
+    };
+  } catch (_) {
+    return { remoteCloseConfirmed: false, closedConnections: 0 };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function clearProxyWithoutCredentials() {
   chrome.storage.local.get(["connected", "proxyUser", "proxyPass"], (stored) => {
     if (chrome.runtime.lastError) return;
@@ -123,13 +151,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "disconnect") {
+    const config = request.payload || proxyConfig;
     clearProxy((error) => {
       if (error) {
         sendResponse({ status: "error", error: error });
         return;
       }
-      chrome.storage.local.set({ connected: false });
-      sendResponse({ status: "disconnected" });
+      chrome.storage.local.set({ connected: false }, async () => {
+        const remoteResult = await requestProxyDisconnect(config);
+        sendResponse({ status: "disconnected", ...remoteResult });
+      });
     });
     return true;
   }
