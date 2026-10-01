@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Homerouter VPN Administration</title>
+  <title>Homerouter proxyadministration</title>
   <style>
     :root {
       color-scheme: dark;
@@ -33,7 +33,7 @@
       font: 14px/1.5 "Segoe UI", sans-serif;
     }
 
-    main { width: min(760px, 100%); margin: 0 auto; }
+    main { width: min(920px, 100%); margin: 0 auto; }
 
     header {
       position: relative;
@@ -68,9 +68,6 @@
     }
 
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    .overview-item { display: grid; min-width: 0; gap: 4px; }
-    .overview-value { overflow-wrap: anywhere; color: var(--text); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
     .overview-link { color: var(--cyan); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
     .form-row { display: grid; gap: 5px; margin-bottom: 12px; }
     .label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
@@ -114,6 +111,18 @@
     button:disabled { opacity: 0.55; cursor: wait; }
 
     .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .tab-list { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: rgba(13, 27, 22, 0.96); }
+    button.tab-button { min-height: 34px; border-color: transparent; background: transparent; color: var(--muted); }
+    button.tab-button[aria-selected="true"] { border-color: var(--line); background: #142820; color: var(--text); }
+    .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .summary-item { display: grid; min-width: 0; gap: 4px; }
+    .summary-value { overflow-wrap: anywhere; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+    .toolbar-actions, .form-actions { display: flex; align-items: center; gap: 8px; }
+    .table-wrap { overflow-x: auto; }
+    .api-intro { max-width: 72ch; color: var(--muted); }
+    .api-table { min-width: 620px; }
+    .api-table td:first-child { white-space: nowrap; color: var(--cyan); }
     .status { min-height: 22px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
     .status.error { color: var(--red); }
     .status.success { color: var(--green); }
@@ -127,7 +136,14 @@
     [hidden] { display: none !important; }
 
     @media (max-width: 560px) {
-      .grid, .overview-grid { grid-template-columns: 1fr; gap: 0; }
+      .grid { grid-template-columns: 1fr; gap: 0; }
+      .admin-toolbar { align-items: stretch; flex-direction: column; }
+      .tab-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      button.tab-button { padding-inline: 6px; }
+      .summary-grid { grid-template-columns: 1fr; gap: 12px; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .toolbar-actions { width: 100%; flex-wrap: wrap; }
+      .toolbar-actions button { flex: 1; }
       body { padding: 18px 12px; }
       header, section { padding: 16px; }
     }
@@ -137,11 +153,11 @@
   <main>
     <header>
       <h1>homerouter.io</h1>
-      <div class="sub">VPN ADMINISTRATION</div>
+      <div class="sub">PROXY-ADMINISTRATION</div>
     </header>
 
     <section id="loginPanel" hidden>
-      <h2>Administrator login</h2>
+      <h2>Administratorlogin</h2>
       <form id="loginForm">
         <div class="form-row">
           <label class="label" for="adminUsername">Brugernavn</label>
@@ -174,36 +190,61 @@
     </section>
 
     <div id="adminApp" hidden>
-      <section aria-labelledby="overviewHeading">
+      <div class="admin-toolbar">
+        <nav class="tab-list" role="tablist" aria-label="Administration">
+          <button id="usersTab" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="usersPanel" tabindex="0">Brugere</button>
+          <button id="loggingTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="loggingPanel" tabindex="-1">Docker-logniveau</button>
+          <button id="apiTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="apiPanel" tabindex="-1">API</button>
+        </nav>
+        <button id="logoutButton" class="secondary" type="button">LOG UD</button>
+      </div>
+
+      <section id="usersPanel" role="tabpanel" aria-labelledby="usersTab" tabindex="0">
         <div class="toolbar">
-          <h2 id="overviewHeading">Proxyoversigt</h2>
-          <a class="overview-link" href="/api/docs">API DOCS</a>
+          <h2>Aktive og deaktiverede brugere</h2>
+          <div class="toolbar-actions">
+            <button id="refreshUsersButton" class="secondary" type="button">GENINDLÆS</button>
+            <button id="toggleCreateUserButton" type="button" aria-controls="userForm" aria-expanded="false">OPRET BRUGER</button>
+          </div>
         </div>
-        <div class="overview-grid">
-          <div class="overview-item">
-            <span class="label">API</span>
-            <code id="apiBase" class="overview-value">/api/v1</code>
+
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="label">Brugerstatus</span>
+            <output id="userCounts" class="summary-value">Indlæser…</output>
           </div>
-          <div class="overview-item">
-            <span class="label">Brugerdata på host</span>
-            <code id="dataHostPath" class="overview-value">Indlæser…</code>
-          </div>
-          <div class="overview-item">
-            <span class="label">Fil i containeren</span>
-            <code id="dataFilePath" class="overview-value">Indlæser…</code>
-          </div>
-          <div class="overview-item">
-            <span class="label">Proxybrugere</span>
-            <output id="userCounts" class="overview-value">Indlæser…</output>
-          </div>
-          <div class="overview-item">
+          <div class="summary-item">
             <span class="label">Bruger proxy lige nu</span>
-            <output id="liveProxyUsers" class="overview-value">Indlæser…</output>
+            <output id="liveProxyUsers" class="summary-value">Indlæser…</output>
           </div>
+        </div>
+
+        <form id="userForm" hidden>
+          <div class="grid">
+            <div class="form-row">
+              <label class="label" for="proxyUsername">Brugernavn</label>
+              <input id="proxyUsername" autocomplete="off" required>
+            </div>
+            <div class="form-row">
+              <label class="label" for="proxyPassword">Adgangskode (min. 12 tegn)</label>
+              <input id="proxyPassword" type="password" autocomplete="new-password" minlength="12" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit">OPRET</button>
+            <button id="cancelCreateUserButton" class="secondary" type="button">ANNULLER</button>
+          </div>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Brugernavn</th><th scope="col">Status</th><th scope="col">Aktiv lige nu</th><th scope="col">Handling</th></tr></thead>
+            <tbody id="userRows"></tbody>
+          </table>
         </div>
       </section>
 
-      <section>
+      <section id="loggingPanel" role="tabpanel" aria-labelledby="loggingTab" tabindex="0" hidden>
         <div class="toolbar">
           <h2>Docker-logniveau</h2>
           <button id="saveLogLevelButton" type="button">GEM LOGNIVEAU</button>
@@ -217,38 +258,41 @@
             <option value="ERROR">ERROR</option>
           </select>
         </div>
-        <p class="status">DEBUG: auth-events + trafik · INFO: gennemført trafik · WARNING: afvisninger · ERROR: server/upstream-fejl. Gælder straks og gemmes ved genstart.</p>
+        <p class="status">DEBUG: godkendelser og trafik · INFO: gennemført trafik · WARNING: afvisninger · ERROR: server- og upstream-fejl. Ændringen gælder straks og gemmes ved genstart.</p>
       </section>
 
-      <section>
-        <div class="toolbar">
-          <h2>Proxybrugere</h2>
-          <button id="logoutButton" class="secondary" type="button">LOG UD</button>
-        </div>
-        <form id="userForm">
-          <div class="grid">
-            <div class="form-row">
-              <label class="label" for="proxyUsername">Brugernavn</label>
-              <input id="proxyUsername" autocomplete="off" required>
-            </div>
-            <div class="form-row">
-              <label class="label" for="proxyPassword">Adgangskode (min. 12 tegn)</label>
-              <input id="proxyPassword" type="password" autocomplete="new-password" minlength="12" required>
-            </div>
+      <section id="apiPanel" role="tabpanel" aria-labelledby="apiTab" tabindex="0" hidden>
+        <h2>Brug af API'et</h2>
+        <p class="api-intro">API'et giver adgang til proxybrugere, live-status og logniveau. Admin-interfacet bruger en sikker sessionscookie; login og adgangskodeskift følger deres egne endpoints. Betroede backendtjenester kan bruge PROXY_API_TOKEN på endpoints, der understøtter service-token. Send aldrig service-token fra browserkode. Proxy-ruterne til loginverifikation og afbrydelse bruger proxybrugerens egne loginoplysninger.</p>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="label">API-base</span>
+            <code id="apiBase" class="summary-value">/api/v1</code>
           </div>
-          <button type="submit">OPRET BRUGER</button>
-        </form>
-      </section>
-
-      <section>
-        <div class="toolbar">
-          <h2>Aktive og deaktiverede brugere</h2>
-          <button id="refreshUsersButton" class="secondary" type="button">GENINDLÆS</button>
+          <div class="summary-item">
+            <span class="label">Dokumentation</span>
+            <a class="overview-link" href="/api/docs">Åbn API-dokumentation</a>
+            <a class="overview-link" href="/api/v1/openapi.yaml">OpenAPI-specifikation</a>
+          </div>
         </div>
-        <table>
-          <thead><tr><th>Brugernavn</th><th>Status</th><th>Aktiv lige nu</th><th>Handling</th></tr></thead>
-          <tbody id="userRows"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table class="api-table">
+            <thead><tr><th scope="col">Metode</th><th scope="col">Rute</th><th scope="col">Formål</th></tr></thead>
+            <tbody>
+              <tr><td>POST</td><td><code>/login</code></td><td>Log ind og opret en admin-session</td></tr>
+              <tr><td>GET</td><td><code>/session</code></td><td>Kontrollér den aktuelle admin-session</td></tr>
+              <tr><td>POST</td><td><code>/logout</code></td><td>Log admin-sessionen ud</td></tr>
+              <tr><td>POST</td><td><code>/admin/password</code></td><td>Skift administratorens adgangskode</td></tr>
+              <tr><td>GET, POST</td><td><code>/users</code></td><td>List og opret proxybrugere</td></tr>
+              <tr><td>GET, PATCH, DELETE</td><td><code>/users/{username}</code></td><td>Læs, redigér og slet en proxybruger</td></tr>
+              <tr><td>GET</td><td><code>/status</code></td><td>Læs brugerantal og liveforbrug</td></tr>
+              <tr><td>GET, PATCH</td><td><code>/settings/logging</code></td><td>Læs og ændr Docker-logniveau</td></tr>
+              <tr><td>POST</td><td><code>/proxy/verify</code></td><td>Kontrollér proxylogin uden auth-cache</td></tr>
+              <tr><td>POST</td><td><code>/proxy/disconnect</code></td><td>Afbryd proxybrugerens aktive forbindelser</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="status">Brugernavn og adgangskode til proxy-ruterne sendes i HTTPS-requestens JSON-body. Se OpenAPI-specifikationen for præcis adgangskontrol for hver rute.</p>
       </section>
     </div>
 
@@ -261,8 +305,54 @@
     const adminApp = document.getElementById("adminApp");
     const statusNode = document.getElementById("status");
     const userRows = document.getElementById("userRows");
+    const adminTabs = [...document.querySelectorAll('[role="tab"]')];
     let activityRefreshTimer = null;
     let activityRefreshBusy = false;
+
+    function activateTab(selectedTab, moveFocus = false) {
+      for (const tab of adminTabs) {
+        const selected = tab === selectedTab;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        document.getElementById(tab.getAttribute("aria-controls")).hidden = !selected;
+      }
+      if (moveFocus) selectedTab.focus();
+    }
+
+    for (const [index, tab] of adminTabs.entries()) {
+      tab.addEventListener("click", () => activateTab(tab));
+      tab.addEventListener("keydown", event => {
+        let nextIndex = index;
+        if (event.key === "ArrowRight") nextIndex = (index + 1) % adminTabs.length;
+        else if (event.key === "ArrowLeft") nextIndex = (index + adminTabs.length - 1) % adminTabs.length;
+        else if (event.key === "Home") nextIndex = 0;
+        else if (event.key === "End") nextIndex = adminTabs.length - 1;
+        else return;
+        event.preventDefault();
+        activateTab(adminTabs[nextIndex], true);
+      });
+    }
+
+    document.getElementById("toggleCreateUserButton").addEventListener("click", event => {
+      const form = document.getElementById("userForm");
+      form.hidden = !form.hidden;
+      event.currentTarget.setAttribute("aria-expanded", String(!form.hidden));
+      if (form.hidden) event.currentTarget.textContent = "OPRET BRUGER";
+      else {
+        event.currentTarget.textContent = "LUK FORMULAR";
+        document.getElementById("proxyUsername").focus();
+      }
+    });
+
+    document.getElementById("cancelCreateUserButton").addEventListener("click", () => {
+      const form = document.getElementById("userForm");
+      form.reset();
+      form.hidden = true;
+      const button = document.getElementById("toggleCreateUserButton");
+      button.textContent = "OPRET BRUGER";
+      button.setAttribute("aria-expanded", "false");
+      button.focus();
+    });
 
     function showStatus(message, kind = "") {
       statusNode.textContent = message;
@@ -304,8 +394,6 @@
       try {
         const overview = await api("/status");
         document.getElementById("apiBase").textContent = overview.api_base;
-        document.getElementById("dataHostPath").textContent = overview.data_host_path;
-        document.getElementById("dataFilePath").textContent = overview.data_file;
         document.getElementById("userCounts").textContent =
           `${overview.active_users} aktive / ${overview.disabled_users} deaktiverede`;
         document.getElementById("liveProxyUsers").textContent =
@@ -465,6 +553,11 @@
           })
         });
         formNode.reset();
+        formNode.hidden = true;
+        const createButton = document.getElementById("toggleCreateUserButton");
+        createButton.textContent = "OPRET BRUGER";
+        createButton.setAttribute("aria-expanded", "false");
+        createButton.focus();
         showStatus("Proxybruger oprettet.", "success");
         try {
           await loadUsers();
