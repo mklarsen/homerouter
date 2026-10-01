@@ -219,8 +219,12 @@ To validate the configuration without touching the system (also what CI runs):
 - `install.sh` always resolves `releases/latest`, so the one-liner installs the
   most recently published version.
 - Proxy extension ZIPs are published through a separate workflow when packaged
-  extension files change. Their `extension-v<x.y.z>` tags and releases are not
-  marked as latest, so they do not affect the router installer.
+  extension files change. The release is titled `homerouter.io Browser
+  Extension <version>`, uses the `extension-v<version>` tag, and is not marked
+  as latest, so it does not affect the router installer.
+- The proxy container is an independent GHCR artifact named
+  `ghcr.io/mklarsen/homerouter-proxy:<version>`; its version is separate from
+  the router and extension versions. Publishing is currently manual.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, coding rules and
 the operational handover notes.
