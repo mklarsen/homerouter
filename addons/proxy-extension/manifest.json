@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "homerouter.io",
-  "homepage_url": "https://github.com/mklarsen",
+  "description": "Connect to the homerouter.io authenticated HTTPS proxy with verified credentials and one-click tunnel disconnect.",
+  "homepage_url": "https://github.com/mklarsen/homerouter/tree/main/addons/proxy-extension",
   "version": "1.3.9",
   "permissions": [
     "proxy",
