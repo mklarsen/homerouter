@@ -160,6 +160,20 @@ func TestOpenAPISpecIsServedWithoutAdminSession(t *testing.T) {
 	}
 }
 
+func TestBrowserAPIDocsAreServedAsHTML(t *testing.T) {
+	service := &server{}
+	request := httptest.NewRequest(http.MethodGet, "/api/docs", nil)
+	request.Host = "vpn.homerouter.io"
+	response := httptest.NewRecorder()
+	service.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Homerouter Proxy API") {
+		t.Fatalf("browser API docs not served: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("unexpected browser docs content type: %q", response.Header().Get("Content-Type"))
+	}
+}
+
 func TestAPITokenMinimumLength(t *testing.T) {
 	if err := validateAPIToken(""); err != nil {
 		t.Fatalf("empty optional API token should be accepted: %v", err)

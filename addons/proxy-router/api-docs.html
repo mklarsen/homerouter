@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Homerouter Proxy API</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #07100d;
+      --panel: #0d1b16;
+      --line: #244438;
+      --cyan: #38bdf8;
+      --green: #10b981;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 18px;
+      background: var(--page);
+      color: var(--text);
+      font: 14px/1.55 "Segoe UI", sans-serif;
+    }
+    main { width: min(900px, 100%); margin: 0 auto; }
+    header, section {
+      margin-bottom: 16px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    header { border-top: 3px solid var(--cyan); }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    h2 { margin: 0 0 14px; font-size: 16px; }
+    p { margin: 8px 0; }
+    .muted, th { color: var(--muted); }
+    nav { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; }
+    a { color: var(--cyan); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 11px; font-weight: 500; text-transform: uppercase; }
+    code, pre, table { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    pre {
+      overflow-x: auto;
+      margin: 12px 0 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #050a08;
+      color: var(--text);
+      white-space: pre;
+    }
+    .method { color: var(--green); font-weight: 700; }
+    @media (max-width: 620px) {
+      body { padding: 18px 12px; }
+      header, section { padding: 15px; }
+      table { font-size: 12px; }
+      th, td { padding: 8px 5px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Homerouter Proxy API</h1>
+      <div class="muted">Versioneret REST API · JSON · HTTPS</div>
+      <nav>
+        <a href="/vpnadm">VPN administration</a>
+        <a href="/api/v1/openapi.yaml" download>Download OpenAPI YAML</a>
+      </nav>
+    </header>
+
+    <section>
+      <h2>Adgang</h2>
+      <p>API-base: <code>https://vpn.homerouter.io/api/v1</code></p>
+      <p>Bruger admin-siden med den sikre session-cookie, eller send <code>Authorization: Bearer &lt;token&gt;</code> fra et betroet backend-system.</p>
+      <p class="muted">Service-tokenet konfigureres som <code>PROXY_API_TOKEN</code> på proxyen, skal være mindst 32 tegn og er ikke beregnet til browserkode. Uden token bruger server-til-server-klienter admin-login og session-cookie.</p>
+      <p>Efter første admin-login skal bootstrap-passwordet skiftes, før brugeradministration er tilladt.</p>
+    </section>
+
+    <section>
+      <h2>Ruter</h2>
+      <table>
+        <thead><tr><th>Metode</th><th>Rute</th><th>Beskrivelse</th><th>Success</th></tr></thead>
+        <tbody>
+          <tr><td class="method">GET</td><td><code>/status</code></td><td>API-, datafil- og brugeroverblik</td><td><code>200</code></td></tr>
+          <tr><td class="method">GET</td><td><code>/users</code></td><td>List brugermetadata; ingen hashes/passwords</td><td><code>200</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/users</code></td><td>Opret proxybruger</td><td><code>201</code></td></tr>
+          <tr><td class="method">GET</td><td><code>/users/{username}</code></td><td>Læs én brugers metadata</td><td><code>200</code></td></tr>
+          <tr><td class="method">PATCH</td><td><code>/users/{username}</code></td><td>Skift password, disabled-status eller begge</td><td><code>204</code></td></tr>
+          <tr><td class="method">DELETE</td><td><code>/users/{username}</code></td><td>Slet proxybruger</td><td><code>204</code></td></tr>
+        </tbody>
+      </table>
+      <p class="muted">Alle JSON-requests bruger <code>Content-Type: application/json</code>. Fejl returneres som <code>{"error":"..."}</code>. Passwords skal være mindst 12 tegn.</p>
+    </section>
+
+    <section>
+      <h2>Eksempel: opret bruger</h2>
+      <pre>curl --request POST \
+  --url https://vpn.homerouter.io/api/v1/users \
+  --header 'Authorization: Bearer &lt;PROXY_API_TOKEN&gt;' \
+  --header 'Content-Type: application/json' \
+  --data '{"username":"service-user","password":"&lt;12+ character secret&gt;"}'</pre>
+    </section>
+  </main>
+</body>
+</html>
