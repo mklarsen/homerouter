@@ -1,0 +1,18 @@
+meta {
+  name: Login Session
+  type: http
+  seq: 0
+}
+
+post {
+  url: {{baseUrl}}/api/v1/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "{{adminUsername}}",
+    "password": "{{adminPassword}}"
+  }
+}

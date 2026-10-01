@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -14,13 +16,25 @@ import (
 //go:embed admin.html
 var adminHTML []byte
 
+//go:embed openapi.yaml
+var openAPISpec []byte
+
 type server struct {
-	users    *userStore
-	sessions *sessionStore
+	users        *userStore
+	sessions     *sessionStore
+	apiToken     string
+	dataHostPath string
 }
 
 type jsonError struct {
 	Error string `json:"error"`
+}
+
+func validateAPIToken(token string) error {
+	if token != "" && len(token) < 32 {
+		return errors.New("PROXY_API_TOKEN must contain at least 32 characters")
+	}
+	return nil
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,12 +78,22 @@ func (s *server) handleAdminAPI(w http.ResponseWriter, r *http.Request) {
 
 	path := strings.TrimSuffix(r.URL.Path, "/")
 	switch path {
+	case "/api/v1/openapi.yaml":
+		if r.Method != http.MethodGet {
+			writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(openAPISpec)
 	case "/api/v1/login":
 		s.handleAdminLogin(w, r)
 	case "/api/v1/logout":
 		s.handleAdminLogout(w, r)
 	case "/api/v1/session":
 		s.handleAdminSession(w, r)
+	case "/api/v1/status":
+		s.handleAdminStatus(w, r)
 	case "/api/v1/admin/password":
 		s.handleAdminPassword(w, r)
 	case "/api/v1/users":
@@ -106,7 +130,7 @@ func (s *server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	setAdminCookie(w, token)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"username":            input.Username,
+		"username":             input.Username,
 		"must_change_password": s.users.adminMustChange(),
 	})
 }
@@ -134,8 +158,27 @@ func (s *server) handleAdminSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"username":            session.username,
+		"username":             session.username,
 		"must_change_password": s.users.adminMustChange(),
+	})
+}
+
+func (s *server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !s.requireAdmin(w, r) {
+		return
+	}
+	activeUsers, disabledUsers := s.users.proxyUserCounts()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"api_base":          "/api/v1",
+		"data_file":         s.users.path,
+		"data_host_path":    s.dataHostPath,
+		"active_users":      activeUsers,
+		"disabled_users":    disabledUsers,
+		"admin_must_change": s.users.adminMustChange(),
 	})
 }
 
@@ -199,15 +242,27 @@ func (s *server) handleProxyUser(w http.ResponseWriter, r *http.Request, usernam
 		return
 	}
 	switch r.Method {
+	case http.MethodGet:
+		user, err := s.users.getProxyUser(decoded)
+		if err != nil {
+			writeAPIError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, user)
 	case http.MethodPatch:
 		var input struct {
-			Disabled bool `json:"disabled"`
+			Password *string `json:"password"`
+			Disabled *bool   `json:"disabled"`
 		}
 		if !decodeJSON(w, r, &input) {
 			return
 		}
-		if err := s.users.setProxyUserDisabled(decoded, input.Disabled); err != nil {
-			writeAPIError(w, http.StatusNotFound, err.Error())
+		if err := s.users.updateProxyUser(decoded, input.Password, input.Disabled); err != nil {
+			status := http.StatusBadRequest
+			if errors.Is(err, errProxyUserNotFound) {
+				status = http.StatusNotFound
+			}
+			writeAPIError(w, status, err.Error())
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -223,7 +278,8 @@ func (s *server) handleProxyUser(w http.ResponseWriter, r *http.Request, usernam
 }
 
 func (s *server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
-	if _, ok := s.adminSession(r); !ok {
+	_, hasSession := s.adminSession(r)
+	if !hasSession && !s.authenticateAPIToken(r) {
 		writeAPIError(w, http.StatusUnauthorized, "login required")
 		return false
 	}
@@ -232,6 +288,19 @@ func (s *server) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+func (s *server) authenticateAPIToken(r *http.Request) bool {
+	if s.apiToken == "" {
+		return false
+	}
+	scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") || strings.TrimSpace(token) == "" {
+		return false
+	}
+	want := sha256.Sum256([]byte(s.apiToken))
+	got := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return subtle.ConstantTimeCompare(got[:], want[:]) == 1
 }
 
 func (s *server) adminSession(r *http.Request) (adminSession, bool) {

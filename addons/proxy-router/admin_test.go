@@ -89,3 +89,85 @@ func TestVPNAdminLoginRotationAndProxyUserAPI(t *testing.T) {
 		t.Fatalf("user API leaked credentials or failed: %d %s", listed.Code, listed.Body.String())
 	}
 }
+
+func TestProxyUserCRUDWithBearerToken(t *testing.T) {
+	users, err := openUserStore(filepath.Join(t.TempDir(), "users.json"), "admin", "bootstrap-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := users.changeAdminPassword("bootstrap-password", "rotated-admin-password-123"); err != nil {
+		t.Fatal(err)
+	}
+	service := &server{users: users, sessions: newSessionStore(), apiToken: "service-api-token"}
+	request := func(method, path, body string, token string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Host = "vpn.homerouter.io"
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		response := httptest.NewRecorder()
+		service.ServeHTTP(response, req)
+		return response
+	}
+
+	if response := request(http.MethodGet, "/api/v1/users", "", "wrong-token"); response.Code != http.StatusUnauthorized {
+		t.Fatalf("invalid service token accepted: %d", response.Code)
+	}
+	created := request(http.MethodPost, "/api/v1/users", `{"username":"alice","password":"first-proxy-password-123"}`, "service-api-token")
+	if created.Code != http.StatusCreated {
+		t.Fatalf("API create failed: %d %s", created.Code, created.Body.String())
+	}
+	read := request(http.MethodGet, "/api/v1/users/alice", "", "service-api-token")
+	if read.Code != http.StatusOK || strings.Contains(read.Body.String(), "password") {
+		t.Fatalf("API read failed or leaked credential data: %d %s", read.Code, read.Body.String())
+	}
+	updated := request(http.MethodPatch, "/api/v1/users/alice", `{"password":"second-proxy-password-456","disabled":true}`, "service-api-token")
+	if updated.Code != http.StatusNoContent || users.authenticateProxy("alice", "second-proxy-password-456") {
+		t.Fatalf("API update failed to rotate/disable credentials: %d", updated.Code)
+	}
+	updated = request(http.MethodPatch, "/api/v1/users/alice", `{"disabled":false}`, "service-api-token")
+	if updated.Code != http.StatusNoContent || !users.authenticateProxy("alice", "second-proxy-password-456") {
+		t.Fatalf("API re-enable failed: %d", updated.Code)
+	}
+	status := request(http.MethodGet, "/api/v1/status", "", "service-api-token")
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"active_users":1`) {
+		t.Fatalf("API status did not report user overview: %d %s", status.Code, status.Body.String())
+	}
+	deleted := request(http.MethodDelete, "/api/v1/users/alice", "", "service-api-token")
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("API delete failed: %d %s", deleted.Code, deleted.Body.String())
+	}
+	missing := request(http.MethodGet, "/api/v1/users/alice", "", "service-api-token")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("deleted API user still exists: %d", missing.Code)
+	}
+}
+
+func TestOpenAPISpecIsServedWithoutAdminSession(t *testing.T) {
+	service := &server{}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/openapi.yaml", nil)
+	request.Host = "vpn.homerouter.io"
+	response := httptest.NewRecorder()
+	service.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Homerouter Proxy API") {
+		t.Fatalf("OpenAPI spec not served: %d %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Header().Get("Content-Type"), "yaml") {
+		t.Fatalf("unexpected OpenAPI content type: %q", response.Header().Get("Content-Type"))
+	}
+}
+
+func TestAPITokenMinimumLength(t *testing.T) {
+	if err := validateAPIToken(""); err != nil {
+		t.Fatalf("empty optional API token should be accepted: %v", err)
+	}
+	if err := validateAPIToken("short-token"); err == nil {
+		t.Fatal("short API token was accepted")
+	}
+	if err := validateAPIToken("0123456789abcdef0123456789abcdef"); err != nil {
+		t.Fatalf("32-character API token rejected: %v", err)
+	}
+}

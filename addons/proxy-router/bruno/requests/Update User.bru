@@ -1,0 +1,22 @@
+meta {
+  name: Update User
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/users/{{proxyUsername}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiToken}}
+}
+
+body:json {
+  {
+    "password": "{{proxyUserPassword}}",
+    "disabled": false
+  }
+}

@@ -2,7 +2,7 @@ FROM golang:1.26-alpine3.23 AS build
 
 WORKDIR /src
 COPY go.mod ./
-COPY *.go admin.html ./
+COPY *.go admin.html openapi.yaml ./
 RUN CGO_ENABLED=0 go test ./... && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/homerouter-proxy .
 

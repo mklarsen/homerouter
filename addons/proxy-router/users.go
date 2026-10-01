@@ -19,6 +19,7 @@ import (
 const passwordIterations = 310000
 
 var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,64}$`)
+var errProxyUserNotFound = errors.New("proxy user not found")
 
 type passwordHash struct {
 	Salt       string `json:"salt"`
@@ -223,6 +224,33 @@ func (s *userStore) listProxyUsers() []proxyUserView {
 	return users
 }
 
+func (s *userStore) getProxyUser(username string) (proxyUserView, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	user, exists := s.state.ProxyUsers[username]
+	if !exists {
+		return proxyUserView{}, errProxyUserNotFound
+	}
+	return proxyUserView{
+		Username: user.Username,
+		Disabled: user.Disabled,
+		Created:  user.Created,
+	}, nil
+}
+
+func (s *userStore) proxyUserCounts() (active, disabled int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, user := range s.state.ProxyUsers {
+		if user.Disabled {
+			disabled++
+		} else {
+			active++
+		}
+	}
+	return active, disabled
+}
+
 func (s *userStore) createProxyUser(username, password string) error {
 	if !usernamePattern.MatchString(username) {
 		return errors.New("username must contain only letters, numbers, dot, underscore, or hyphen")
@@ -252,18 +280,40 @@ func (s *userStore) createProxyUser(username, password string) error {
 }
 
 func (s *userStore) setProxyUserDisabled(username string, disabled bool) error {
+	return s.updateProxyUser(username, nil, &disabled)
+}
+
+func (s *userStore) updateProxyUser(username string, password *string, disabled *bool) error {
+	if password == nil && disabled == nil {
+		return errors.New("no proxy-user fields provided")
+	}
+	var nextPassword *passwordHash
+	if password != nil {
+		if len(*password) < 12 {
+			return errors.New("proxy password must be at least 12 characters")
+		}
+		hash, err := newPasswordHash(*password)
+		if err != nil {
+			return err
+		}
+		nextPassword = &hash
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	user, exists := s.state.ProxyUsers[username]
 	if !exists {
-		return errors.New("proxy user not found")
+		return errProxyUserNotFound
 	}
-	old := user.Disabled
-	user.Disabled = disabled
+	old := user
+	if nextPassword != nil {
+		user.Password = *nextPassword
+	}
+	if disabled != nil {
+		user.Disabled = *disabled
+	}
 	s.state.ProxyUsers[username] = user
 	if err := s.saveLocked(); err != nil {
-		user.Disabled = old
-		s.state.ProxyUsers[username] = user
+		s.state.ProxyUsers[username] = old
 		return err
 	}
 	return nil
@@ -274,7 +324,7 @@ func (s *userStore) deleteProxyUser(username string) error {
 	defer s.mu.Unlock()
 	user, exists := s.state.ProxyUsers[username]
 	if !exists {
-		return errors.New("proxy user not found")
+		return errProxyUserNotFound
 	}
 	delete(s.state.ProxyUsers, username)
 	if err := s.saveLocked(); err != nil {

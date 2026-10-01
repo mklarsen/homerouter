@@ -68,6 +68,10 @@
     }
 
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .overview-item { display: grid; min-width: 0; gap: 4px; }
+    .overview-value { overflow-wrap: anywhere; color: var(--text); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+    .overview-link { color: var(--cyan); font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
     .form-row { display: grid; gap: 5px; margin-bottom: 12px; }
     .label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
 
@@ -113,7 +117,7 @@
     [hidden] { display: none !important; }
 
     @media (max-width: 560px) {
-      .grid { grid-template-columns: 1fr; gap: 0; }
+      .grid, .overview-grid { grid-template-columns: 1fr; gap: 0; }
       body { padding: 18px 12px; }
       header, section { padding: 16px; }
     }
@@ -160,6 +164,31 @@
     </section>
 
     <div id="adminApp" hidden>
+      <section aria-labelledby="overviewHeading">
+        <div class="toolbar">
+          <h2 id="overviewHeading">Proxyoversigt</h2>
+          <a class="overview-link" href="/api/v1/openapi.yaml" target="_blank" rel="noreferrer">OPENAPI</a>
+        </div>
+        <div class="overview-grid">
+          <div class="overview-item">
+            <span class="label">API</span>
+            <code id="apiBase" class="overview-value">/api/v1</code>
+          </div>
+          <div class="overview-item">
+            <span class="label">Brugerdata på host</span>
+            <code id="dataHostPath" class="overview-value">Indlæser…</code>
+          </div>
+          <div class="overview-item">
+            <span class="label">Fil i containeren</span>
+            <code id="dataFilePath" class="overview-value">Indlæser…</code>
+          </div>
+          <div class="overview-item">
+            <span class="label">Proxybrugere</span>
+            <output id="userCounts" class="overview-value">Indlæser…</output>
+          </div>
+        </div>
+      </section>
+
       <section>
         <div class="toolbar">
           <h2>Proxybrugere</h2>
@@ -220,7 +249,23 @@
       loginPanel.hidden = true;
       passwordPanel.hidden = !mustChangePassword;
       adminApp.hidden = mustChangePassword;
-      if (!mustChangePassword) loadUsers();
+      if (!mustChangePassword) {
+        loadOverview();
+        loadUsers();
+      }
+    }
+
+    async function loadOverview() {
+      try {
+        const overview = await api("/status");
+        document.getElementById("apiBase").textContent = overview.api_base;
+        document.getElementById("dataHostPath").textContent = overview.data_host_path;
+        document.getElementById("dataFilePath").textContent = overview.data_file;
+        document.getElementById("userCounts").textContent =
+          `${overview.active_users} aktive / ${overview.disabled_users} deaktiverede`;
+      } catch (error) {
+        showStatus(error.message, "error");
+      }
     }
 
     async function loadUsers() {

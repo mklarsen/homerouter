@@ -57,3 +57,34 @@ func TestProxyUserLifecycle(t *testing.T) {
 		t.Fatal("deleted proxy user authenticated")
 	}
 }
+
+func TestProxyUserReadAndUpdate(t *testing.T) {
+	store, err := openUserStore(filepath.Join(t.TempDir(), "users.json"), "admin", "bootstrap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.createProxyUser("mkl", "before-password-123"); err != nil {
+		t.Fatal(err)
+	}
+	view, err := store.getProxyUser("mkl")
+	if err != nil || view.Username != "mkl" || view.Disabled {
+		t.Fatalf("unexpected proxy user view: %#v, %v", view, err)
+	}
+
+	newPassword := "after-password-456"
+	disabled := true
+	if err := store.updateProxyUser("mkl", &newPassword, &disabled); err != nil {
+		t.Fatal(err)
+	}
+	if store.authenticateProxy("mkl", "before-password-123") || store.authenticateProxy("mkl", newPassword) {
+		t.Fatal("password update or disable state was not applied")
+	}
+	view, err = store.getProxyUser("mkl")
+	if err != nil || !view.Disabled {
+		t.Fatalf("updated user state was not returned: %#v, %v", view, err)
+	}
+	active, disabledCount := store.proxyUserCounts()
+	if active != 0 || disabledCount != 1 {
+		t.Fatalf("unexpected user counts: active=%d disabled=%d", active, disabledCount)
+	}
+}
