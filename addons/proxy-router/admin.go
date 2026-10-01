@@ -171,7 +171,7 @@ func (s *server) handleProxyDisconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"username":          input.Username,
+		"username":           input.Username,
 		"closed_connections": s.activity.disconnect(input.Username),
 	})
 }
@@ -264,14 +264,14 @@ func (s *server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 	activeUsers, disabledUsers := s.users.proxyUserCounts()
 	activeProxyUsers, activeProxyConnections := s.activity.summary()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"api_base":          "/api/v1",
-		"data_file":         s.users.path,
-		"data_host_path":    s.dataHostPath,
-		"active_users":      activeUsers,
-		"disabled_users":    disabledUsers,
-		"admin_must_change": s.users.adminMustChange(),
-		"log_level":         s.users.logLevel(),
-		"active_proxy_users": activeProxyUsers,
+		"api_base":                 "/api/v1",
+		"data_file":                s.users.path,
+		"data_host_path":           s.dataHostPath,
+		"active_users":             activeUsers,
+		"disabled_users":           disabledUsers,
+		"admin_must_change":        s.users.adminMustChange(),
+		"log_level":                s.users.logLevel(),
+		"active_proxy_users":       activeProxyUsers,
 		"active_proxy_connections": activeProxyConnections,
 	})
 }

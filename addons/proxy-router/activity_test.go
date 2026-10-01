@@ -4,7 +4,7 @@ import "testing"
 
 func TestProxyActivityTracksActiveUsersAndConnections(t *testing.T) {
 	activity := newProxyActivity()
-	 aliceFirst := activity.begin("alice", func() {})
+	aliceFirst := activity.begin("alice", func() {})
 	aliceSecond := activity.begin("alice", func() {})
 	bob := activity.begin("bob", func() {})
 
