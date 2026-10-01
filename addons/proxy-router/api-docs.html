@@ -91,6 +91,7 @@
           <tr><td class="method">GET</td><td><code>/status</code></td><td>API-, datafil-, logniveau- og live trafikoverblik</td><td><code>200</code></td></tr>
           <tr><td class="method">GET/PATCH</td><td><code>/settings/logging</code></td><td>Læs og ændr persistent Docker-logniveau</td><td><code>200</code></td></tr>
           <tr><td class="method">POST</td><td><code>/proxy/disconnect</code></td><td>Luk denne brugers aktive forbindelser</td><td><code>200</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/proxy/verify</code></td><td>Verificér proxy-login direkte over HTTPS</td><td><code>200</code> / <code>401</code></td></tr>
           <tr><td class="method">GET</td><td><code>/users</code></td><td>Brugermetadata og aktive requests/tunneler</td><td><code>200</code></td></tr>
           <tr><td class="method">POST</td><td><code>/users</code></td><td>Opret proxybruger; eksisterende navn giver <code>409</code></td><td><code>201</code> / <code>409</code></td></tr>
           <tr><td class="method">GET</td><td><code>/users/{username}</code></td><td>Læs én brugers metadata</td><td><code>200</code></td></tr>
@@ -113,6 +114,12 @@
       <h2>Afbryd proxyforbindelser</h2>
       <p>Extensionens <strong>AFBRYD TUNNEL</strong> sender proxy-brugernavn og -password over HTTPS til <code>POST /api/v1/proxy/disconnect</code>. Serveren annullerer alle aktive requests og tunneler for brugernavnet. Hvis samme bruger er sat op på flere enheder, afbrydes de alle.</p>
       <p class="muted">Et tvunget browser-/OS-stop kan ikke sende afbrydelsesbeskeden; TCP-forbindelserne lukker i stedet ved normal socket-oprydning.</p>
+    </section>
+
+    <section>
+      <h2>Verificér proxy-login</h2>
+      <p>Extensionen kontrollerer brugernavn/password direkte mod <code>POST /api/v1/proxy/verify</code> over HTTPS, før den tester proxytrafikken. Det omgår Chrome's cachede proxy-auth; du behøver ikke genstarte browseren efter credential-ændringer.</p>
+      <p class="muted">Endpointet returnerer kun om login er gyldigt og opretter ikke en session.</p>
     </section>
 
     <section>

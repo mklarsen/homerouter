@@ -32,6 +32,34 @@ function credentialsForRequest(details, temporaryCredentials, temporaryURL, save
     : savedCredentials;
 }
 
+async function verifyProxyCredentials(credentials) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch("https://vpn.homerouter.io/api/v1/proxy/verify", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: credentials.username, password: credentials.password }),
+      signal: controller.signal
+    });
+    if (response.status === 401) {
+      return { success: false, error: "Proxyen afviste brugernavn eller adgangskode." };
+    }
+    if (!response.ok) {
+      return { success: false, error: "Proxyens credential-verifikation svarede uventet (" + response.status + ")." };
+    }
+    const result = await response.json().catch(() => ({}));
+    return result.verified === true
+      ? { success: true }
+      : { success: false, error: "Proxyen kunne ikke bekræfte credentials." };
+  } catch (_) {
+    return { success: false, error: "Kunne ikke verificere credentials mod vpn.homerouter.io." };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function loadStoredConfig() {
   chrome.storage.local.get(["proxyHost", "proxyPort", "proxyUser", "proxyPass"], (data) => {
     if (chrome.runtime.lastError) {
@@ -179,7 +207,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return;
     }
 
-    testCredentials = { username, password };
+    testCredentials = null;
+    testRequestURL = null;
     testAuthChallenges = 0;
     testAuthRejected = false;
 
@@ -233,7 +262,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         };
 
-        applyProxy(host, port, async (proxyError) => {
+        verifyProxyCredentials({ username, password }).then(verification => {
+          if (!verification.success) {
+            finishTest(verification);
+            return;
+          }
+
+          testCredentials = { username, password };
+          testAuthChallenges = 0;
+          testAuthRejected = false;
+          applyProxy(host, port, async (proxyError) => {
           if (proxyError) {
             finishTest({
               success: false,
@@ -255,12 +293,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
 
             if (res.status === 204 || res.ok) {
-              result = testAuthChallenges > 0
-                ? { success: true, credentialsVerified: true }
-                : {
-                    success: false,
-                    error: "Chrome genbrugte et cachet proxy-login. Luk alle browser-vinduer helt, åbn browseren igen, og test igen."
-                  };
+              result = { success: true, credentialsVerified: true };
             } else if (res.status === 407) {
               result = {
                 success: false,
@@ -288,6 +321,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
 
           finishTest(result);
+          });
         });
       }
     );
