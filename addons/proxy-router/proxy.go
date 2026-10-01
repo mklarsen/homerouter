@@ -109,8 +109,11 @@ func (s *server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	if !authenticated {
 		return
 	}
-	finishActivity := s.activity.begin(username)
+	proxyContext, cancelProxy := context.WithCancel(r.Context())
+	defer cancelProxy()
+	finishActivity := s.activity.begin(username, cancelProxy)
 	defer finishActivity()
+	r = r.WithContext(proxyContext)
 	started := time.Now()
 	upstream, err := dialPublicTarget(r.Context(), r.Host, "443")
 	if err != nil {
@@ -136,6 +139,11 @@ func (s *server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		logProxyEvent("connect", username, r.RemoteAddr, r.Method, r.Host, http.StatusInternalServerError, 0, 0, time.Since(started))
 		return
 	}
+	stopCloseConnections := context.AfterFunc(proxyContext, func() {
+		_ = client.Close()
+		_ = upstream.Close()
+	})
+	defer stopCloseConnections()
 	logProxyEvent("connect_open", username, r.RemoteAddr, r.Method, r.Host, http.StatusOK, 0, 0, time.Since(started))
 
 	finished := make(chan struct{}, 2)
@@ -166,8 +174,11 @@ func (s *server) handleForward(w http.ResponseWriter, r *http.Request) {
 	if !authenticated {
 		return
 	}
-	finishActivity := s.activity.begin(username)
+	proxyContext, cancelProxy := context.WithCancel(r.Context())
+	defer cancelProxy()
+	finishActivity := s.activity.begin(username, cancelProxy)
 	defer finishActivity()
+	r = r.WithContext(proxyContext)
 	started := time.Now()
 	if r.URL == nil || !r.URL.IsAbs() || !strings.EqualFold(r.URL.Scheme, "http") || r.URL.Host == "" {
 		http.Error(w, "only absolute-form HTTP proxy requests are supported", http.StatusBadRequest)

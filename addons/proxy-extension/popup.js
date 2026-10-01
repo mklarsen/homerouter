@@ -123,8 +123,12 @@ btn.addEventListener("click", () => {
       }
 
       if (result.connected) {
+        const config = {
+          username: result.proxyUser || "",
+          password: result.proxyPass || ""
+        };
         btn.disabled = true;
-        chrome.runtime.sendMessage({ action: "disconnect" }, (response) => {
+        chrome.runtime.sendMessage({ action: "disconnect", payload: config }, (response) => {
           btn.disabled = false;
           if (chrome.runtime.lastError) {
             showConnectionError(chrome.runtime.lastError.message);
@@ -135,6 +139,13 @@ btn.addEventListener("click", () => {
             return;
           }
           updateUI(false);
+          if (response.remoteCloseConfirmed) {
+            feedback.className = "feedback-success";
+            feedback.textContent = `Proxy afbrudt; ${response.closedConnections} forbindelser lukket på serveren.`;
+          } else {
+            feedback.className = "feedback-warning";
+            feedback.textContent = "Proxy afbrudt lokalt; serveren kunne ikke bekræfte lukning af eksisterende forbindelser.";
+          }
         });
         return;
       }
