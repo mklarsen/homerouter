@@ -88,3 +88,34 @@ func TestProxyUserReadAndUpdate(t *testing.T) {
 		t.Fatalf("unexpected user counts: active=%d disabled=%d", active, disabledCount)
 	}
 }
+
+func TestProxyLogLevelPersistsAndValidates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "users.json")
+	store, err := openUserStore(path, "admin", "bootstrap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.logLevel() != "INFO" {
+		t.Fatalf("default log level = %q, want INFO", store.logLevel())
+	}
+	if err := store.setLogLevel("debug"); err != nil {
+		t.Fatal(err)
+	}
+	if store.logLevel() != "DEBUG" || activeProxyLogLevelName() != "INFO" {
+		t.Fatalf("persisted setting or runtime level was unexpectedly coupled: store=%q runtime=%q", store.logLevel(), activeProxyLogLevelName())
+	}
+	if setActiveProxyLogLevel(store.logLevel()) != true || activeProxyLogLevelName() != "DEBUG" {
+		t.Fatal("runtime log level did not accept persisted setting")
+	}
+	if err := store.setLogLevel("TRACE"); err == nil {
+		t.Fatal("unsupported log level accepted")
+	}
+	reloaded, err := openUserStore(path, "admin", "ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.logLevel() != "DEBUG" {
+		t.Fatalf("reloaded log level = %q, want DEBUG", reloaded.logLevel())
+	}
+	setActiveProxyLogLevel(defaultProxyLogLevel)
+}

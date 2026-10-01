@@ -87,6 +87,16 @@
 
     input:focus { outline: 2px solid var(--cyan); outline-offset: 1px; }
 
+    select {
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--field);
+      color: var(--text);
+      font: inherit;
+    }
+
     button {
       min-height: 38px;
       padding: 8px 12px;
@@ -191,6 +201,23 @@
 
       <section>
         <div class="toolbar">
+          <h2>Docker-logniveau</h2>
+          <button id="saveLogLevelButton" type="button">GEM LOGNIVEAU</button>
+        </div>
+        <div class="form-row">
+          <label class="label" for="logLevel">Niveau</label>
+          <select id="logLevel">
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+          </select>
+        </div>
+        <p class="status">DEBUG: auth-events + trafik · INFO: gennemført trafik · WARNING: afvisninger · ERROR: server/upstream-fejl. Gælder straks og gemmes ved genstart.</p>
+      </section>
+
+      <section>
+        <div class="toolbar">
           <h2>Proxybrugere</h2>
           <button id="logoutButton" class="secondary" type="button">LOG UD</button>
         </div>
@@ -258,6 +285,7 @@
       adminApp.hidden = mustChangePassword;
       if (!mustChangePassword) {
         loadOverview();
+        loadLogLevel();
         loadUsers().catch(error => showStatus(error.message, "error"));
       }
     }
@@ -274,6 +302,31 @@
         showStatus(error.message, "error");
       }
     }
+
+    async function loadLogLevel() {
+      try {
+        const settings = await api("/settings/logging");
+        document.getElementById("logLevel").value = settings.level;
+      } catch (error) {
+        showStatus("Kunne ikke hente logniveau: " + error.message, "error");
+      }
+    }
+
+    document.getElementById("saveLogLevelButton").addEventListener("click", async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const result = await api("/settings/logging", {
+          method: "PATCH",
+          body: JSON.stringify({ level: document.getElementById("logLevel").value })
+        });
+        showStatus("Docker-logniveau gemt: " + result.level + ". Ændringen gælder straks.", "success");
+      } catch (error) {
+        showStatus("Kunne ikke gemme logniveau: " + error.message, "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     async function loadUsers() {
       try {
