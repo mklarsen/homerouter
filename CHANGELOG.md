@@ -13,7 +13,9 @@ as the release notes. Merges without a new version heading do not release.
 ## [Unreleased]
 
 - Add proxy-router and proxy-extension addons under `addons/`.
-- Vendor the pinned GOST v3.3.0 source without upstream CI/nightly workflows and add manual GHCR publishing for the Homerouter proxy image.
+- Add an independent standard-library Go HTTP/CONNECT proxy with `/vpnadm` and a user-management API.
+- Retain upstream GOST attribution; replace the vendored GOST implementation with Homerouter-owned proxy code.
+- Bump the proxy extension to `1.3.6` and bypass `vpn.homerouter.io` to prevent the admin UI from proxy-looping.
 - Persist interface role names by matching WAN, LAN, and Wi-Fi devices by MAC.
 
 ## [0.4.1] - 2026-09-04

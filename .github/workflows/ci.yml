@@ -28,6 +28,15 @@ jobs:
       - name: Validate CHANGELOG.md
         run: ./scripts/changelog.sh check
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: addons/proxy-router/go.mod
+
+      - name: Test proxy router
+        run: go test ./...
+        working-directory: addons/proxy-router
+
       - name: Render and validate configuration
         run: sudo -E ./scripts/selftest.sh
 

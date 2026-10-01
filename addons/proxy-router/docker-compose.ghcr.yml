@@ -1,4 +1,13 @@
 services:
   vpn-proxy:
-    image: ghcr.io/mklarsen/homerouter-proxy:3.3.0
+    image: ghcr.io/mklarsen/homerouter-proxy:1.0.0
     pull_policy: always
+    command: []
+    environment:
+      PROXY_ADMIN_PASSWORD: ${PROXY_ADMIN_PASSWORD:?Set PROXY_ADMIN_PASSWORD in /opt/stacks/.env}
+    volumes:
+      - homerouter-proxy-users:/data
+
+volumes:
+  homerouter-proxy-users:
+    name: homerouter-proxy-users
