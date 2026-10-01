@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Homerouter Proxy API
-  version: 1.2.5
+  version: 1.2.6
   description: >-
     HTTPS JSON API for proxy-user administration. Browser clients may use the
     administrator session cookie. Trusted backend services may use a configured
@@ -161,34 +161,6 @@ paths:
                 properties:
                   username: { type: string }
                   closed_connections: { type: integer }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-  /api/v1/proxy/verify:
-    post:
-      summary: Verify proxy-user credentials independently of browser proxy-auth cache
-      description: Accepts proxy-user credentials over HTTPS and does not create an administrator or proxy session.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [username, password]
-              properties:
-                username: { type: string }
-                password: { type: string, format: password }
-      responses:
-        '200':
-          description: Credentials are valid
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [username, verified]
-                properties:
-                  username: { type: string }
-                  verified: { type: boolean, const: true }
-        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /api/v1/proxy/verify:
