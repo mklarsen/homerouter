@@ -210,7 +210,10 @@
       </section>
 
       <section>
-        <h2>Aktive og deaktiverede brugere</h2>
+        <div class="toolbar">
+          <h2>Aktive og deaktiverede brugere</h2>
+          <button id="refreshUsersButton" class="secondary" type="button">GENINDLÆS</button>
+        </div>
         <table>
           <thead><tr><th>Brugernavn</th><th>Status</th><th>Handling</th></tr></thead>
           <tbody id="userRows"></tbody>
@@ -241,7 +244,11 @@
       });
       if (response.status === 204) return null;
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "Forespørgslen fejlede.");
+      if (!response.ok) {
+        const error = new Error(body.error || "Forespørgslen fejlede.");
+        error.status = response.status;
+        throw error;
+      }
       return body;
     }
 
@@ -251,7 +258,7 @@
       adminApp.hidden = mustChangePassword;
       if (!mustChangePassword) {
         loadOverview();
-        loadUsers();
+        loadUsers().catch(error => showStatus(error.message, "error"));
       }
     }
 
@@ -321,7 +328,7 @@
           userRows.append(row);
         }
       } catch (error) {
-        showStatus(error.message, "error");
+        throw error;
       }
     }
 
@@ -360,19 +367,49 @@
 
     document.getElementById("userForm").addEventListener("submit", async event => {
       event.preventDefault();
+      const formNode = event.currentTarget;
+      const submitButton = formNode.querySelector('button[type="submit"]');
+      if (submitButton.disabled) return;
+      submitButton.disabled = true;
+      const username = document.getElementById("proxyUsername").value;
       try {
         await api("/users", {
           method: "POST",
           body: JSON.stringify({
-            username: document.getElementById("proxyUsername").value,
+            username,
             password: document.getElementById("proxyPassword").value
           })
         });
-        event.currentTarget.reset();
+        formNode.reset();
         showStatus("Proxybruger oprettet.", "success");
-        await loadUsers();
+        try {
+          await loadUsers();
+        } catch (error) {
+          showStatus("Brugeren blev oprettet, men listen kunne ikke opdateres: " + error.message, "error");
+        }
       } catch (error) {
-        showStatus(error.message, "error");
+        if (error.status === 409) {
+          document.getElementById("proxyPassword").value = "";
+          try {
+            await loadUsers();
+            showStatus("Brugeren findes allerede; listen er opdateret.", "success");
+          } catch (refreshError) {
+            showStatus("Brugeren findes allerede, men listen kunne ikke opdateres: " + refreshError.message, "error");
+          }
+        } else {
+          showStatus(error.message, "error");
+        }
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+
+    document.getElementById("refreshUsersButton").addEventListener("click", async () => {
+      try {
+        await loadUsers();
+        showStatus("Brugerlisten er opdateret.", "success");
+      } catch (error) {
+        showStatus("Brugerlisten kunne ikke opdateres: " + error.message, "error");
       }
     });
 

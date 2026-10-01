@@ -235,7 +235,11 @@ func (s *server) handleProxyUsers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := s.users.createProxyUser(input.Username, input.Password); err != nil {
-			writeAPIError(w, http.StatusBadRequest, err.Error())
+			status := http.StatusBadRequest
+			if errors.Is(err, errProxyUserAlreadyExists) {
+				status = http.StatusConflict
+			}
+			writeAPIError(w, status, err.Error())
 			return
 		}
 		w.WriteHeader(http.StatusCreated)

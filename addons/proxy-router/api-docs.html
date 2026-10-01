@@ -90,7 +90,7 @@
         <tbody>
           <tr><td class="method">GET</td><td><code>/status</code></td><td>API-, datafil- og brugeroverblik</td><td><code>200</code></td></tr>
           <tr><td class="method">GET</td><td><code>/users</code></td><td>List brugermetadata; ingen hashes/passwords</td><td><code>200</code></td></tr>
-          <tr><td class="method">POST</td><td><code>/users</code></td><td>Opret proxybruger</td><td><code>201</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/users</code></td><td>Opret proxybruger; eksisterende navn giver <code>409</code></td><td><code>201</code> / <code>409</code></td></tr>
           <tr><td class="method">GET</td><td><code>/users/{username}</code></td><td>Læs én brugers metadata</td><td><code>200</code></td></tr>
           <tr><td class="method">PATCH</td><td><code>/users/{username}</code></td><td>Skift password, disabled-status eller begge</td><td><code>204</code></td></tr>
           <tr><td class="method">DELETE</td><td><code>/users/{username}</code></td><td>Slet proxybruger</td><td><code>204</code></td></tr>

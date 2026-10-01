@@ -120,6 +120,10 @@ func TestProxyUserCRUDWithBearerToken(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("API create failed: %d %s", created.Code, created.Body.String())
 	}
+	duplicate := request(http.MethodPost, "/api/v1/users", `{"username":"alice","password":"another-proxy-password-456"}`, "service-api-token")
+	if duplicate.Code != http.StatusConflict {
+		t.Fatalf("duplicate API create should return 409: %d %s", duplicate.Code, duplicate.Body.String())
+	}
 	read := request(http.MethodGet, "/api/v1/users/alice", "", "service-api-token")
 	if read.Code != http.StatusOK || strings.Contains(read.Body.String(), "password") {
 		t.Fatalf("API read failed or leaked credential data: %d %s", read.Code, read.Body.String())
