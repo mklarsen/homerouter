@@ -109,6 +109,8 @@ func (s *server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	if !authenticated {
 		return
 	}
+	finishActivity := s.activity.begin(username)
+	defer finishActivity()
 	started := time.Now()
 	upstream, err := dialPublicTarget(r.Context(), r.Host, "443")
 	if err != nil {
@@ -164,6 +166,8 @@ func (s *server) handleForward(w http.ResponseWriter, r *http.Request) {
 	if !authenticated {
 		return
 	}
+	finishActivity := s.activity.begin(username)
+	defer finishActivity()
 	started := time.Now()
 	if r.URL == nil || !r.URL.IsAbs() || !strings.EqualFold(r.URL.Scheme, "http") || r.URL.Host == "" {
 		http.Error(w, "only absolute-form HTTP proxy requests are supported", http.StatusBadRequest)

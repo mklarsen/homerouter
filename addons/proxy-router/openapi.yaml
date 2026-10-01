@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Homerouter Proxy API
-  version: 1.2.2
+  version: 1.2.3
   description: >-
     HTTPS JSON API for proxy-user administration. Browser clients may use the
     administrator session cookie. Trusted backend services may use a configured
@@ -38,7 +38,6 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
   /api/v1/session:
     get:
-                                log_level: { $ref: '#/components/schemas/LogLevel' }
       security:
         - adminSession: []
       responses:
@@ -84,7 +83,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [api_base, data_file, data_host_path, active_users, disabled_users, log_level]
+                required: [api_base, data_file, data_host_path, active_users, disabled_users, log_level, active_proxy_users, active_proxy_connections]
                 properties:
                   api_base: { type: string }
                   data_file: { type: string }
@@ -93,6 +92,8 @@ paths:
                   disabled_users: { type: integer }
                   admin_must_change: { type: boolean }
                   log_level: { $ref: '#/components/schemas/LogLevel' }
+                  active_proxy_users: { type: integer, description: Unique users with requests or CONNECT tunnels in flight }
+                  active_proxy_connections: { type: integer, description: HTTP requests and CONNECT tunnels currently in flight }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /api/v1/settings/logging:
@@ -246,11 +247,12 @@ components:
       enum: [DEBUG, INFO, WARNING, ERROR]
     ProxyUser:
       type: object
-      required: [username, disabled, created]
+      required: [username, disabled, created, active_connections]
       properties:
         username: { type: string }
         disabled: { type: boolean }
         created: { type: string, format: date-time }
+        active_connections: { type: integer, description: Requests and CONNECT tunnels currently in flight for this user }
     Error:
       type: object
       required: [error]

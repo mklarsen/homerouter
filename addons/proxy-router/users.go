@@ -37,9 +37,10 @@ type proxyUser struct {
 }
 
 type proxyUserView struct {
-	Username string    `json:"username"`
-	Disabled bool      `json:"disabled"`
-	Created  time.Time `json:"created"`
+	Username           string    `json:"username"`
+	Disabled           bool      `json:"disabled"`
+	Created            time.Time `json:"created"`
+	ActiveConnections  int       `json:"active_connections"`
 }
 
 type diskState struct {

@@ -25,6 +25,7 @@ var openAPISpec []byte
 type server struct {
 	users        *userStore
 	sessions     *sessionStore
+	activity     *proxyActivity
 	apiToken     string
 	dataHostPath string
 }
@@ -186,6 +187,7 @@ func (s *server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	activeUsers, disabledUsers := s.users.proxyUserCounts()
+	activeProxyUsers, activeProxyConnections := s.activity.summary()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"api_base":          "/api/v1",
 		"data_file":         s.users.path,
@@ -194,6 +196,8 @@ func (s *server) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 		"disabled_users":    disabledUsers,
 		"admin_must_change": s.users.adminMustChange(),
 		"log_level":         s.users.logLevel(),
+		"active_proxy_users": activeProxyUsers,
+		"active_proxy_connections": activeProxyConnections,
 	})
 }
 
@@ -256,6 +260,9 @@ func (s *server) handleProxyUsers(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		users := s.users.listProxyUsers()
 		sort.Slice(users, func(i, j int) bool { return users[i].Username < users[j].Username })
+		for i := range users {
+			users[i].ActiveConnections = s.activity.count(users[i].Username)
+		}
 		writeJSON(w, http.StatusOK, users)
 	case http.MethodPost:
 		var input struct {
@@ -295,6 +302,7 @@ func (s *server) handleProxyUser(w http.ResponseWriter, r *http.Request, usernam
 			writeAPIError(w, http.StatusNotFound, err.Error())
 			return
 		}
+		user.ActiveConnections = s.activity.count(user.Username)
 		writeJSON(w, http.StatusOK, user)
 	case http.MethodPatch:
 		var input struct {
