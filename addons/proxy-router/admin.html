@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="da">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Homerouter proxyadministration</title>
+  <title>Homerouter Proxy Administration</title>
   <style>
     :root {
       color-scheme: dark;
@@ -153,92 +153,92 @@
   <main>
     <header>
       <h1>homerouter.io</h1>
-      <div class="sub">PROXY-ADMINISTRATION</div>
+      <div class="sub">PROXY ADMINISTRATION</div>
     </header>
 
     <section id="loginPanel" hidden>
-      <h2>Administratorlogin</h2>
+      <h2>Administrator Login</h2>
       <form id="loginForm">
         <div class="form-row">
-          <label class="label" for="adminUsername">Brugernavn</label>
+          <label class="label" for="adminUsername">Username</label>
           <input id="adminUsername" name="username" autocomplete="username" required>
         </div>
         <div class="form-row">
-          <label class="label" for="adminPassword">Adgangskode</label>
+          <label class="label" for="adminPassword">Password</label>
           <input id="adminPassword" name="password" type="password" autocomplete="current-password" required>
         </div>
-        <button type="submit">LOG IND</button>
+        <button type="submit">LOG IN</button>
       </form>
     </section>
 
     <section id="passwordPanel" hidden>
-      <h2>Skift bootstrap-adgangskode</h2>
-      <p class="warning">Skift bootstrap-adgangskoden, før du administrerer proxybrugere.</p>
+      <h2>Change Bootstrap Password</h2>
+      <p class="warning">Change the bootstrap password before managing proxy users.</p>
       <form id="passwordForm">
         <div class="grid">
           <div class="form-row">
-            <label class="label" for="currentPassword">Nuværende adgangskode</label>
+            <label class="label" for="currentPassword">Current password</label>
             <input id="currentPassword" type="password" autocomplete="current-password" required>
           </div>
           <div class="form-row">
-            <label class="label" for="newAdminPassword">Ny adgangskode (min. 12 tegn)</label>
+            <label class="label" for="newAdminPassword">New password (at least 12 characters)</label>
             <input id="newAdminPassword" type="password" autocomplete="new-password" minlength="12" required>
           </div>
         </div>
-        <button type="submit">SKIFT ADGANGSKODE</button>
+        <button type="submit">CHANGE PASSWORD</button>
       </form>
     </section>
 
     <div id="adminApp" hidden>
       <div class="admin-toolbar">
         <nav class="tab-list" role="tablist" aria-label="Administration">
-          <button id="usersTab" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="usersPanel" tabindex="0">Brugere</button>
-          <button id="loggingTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="loggingPanel" tabindex="-1">Docker-logniveau</button>
+          <button id="usersTab" class="tab-button" type="button" role="tab" aria-selected="true" aria-controls="usersPanel" tabindex="0">Users</button>
+          <button id="loggingTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="loggingPanel" tabindex="-1">Docker Log Level</button>
           <button id="apiTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="apiPanel" tabindex="-1">API</button>
         </nav>
-        <button id="logoutButton" class="secondary" type="button">LOG UD</button>
+        <button id="logoutButton" class="secondary" type="button">LOG OUT</button>
       </div>
 
       <section id="usersPanel" role="tabpanel" aria-labelledby="usersTab" tabindex="0">
         <div class="toolbar">
-          <h2>Aktive og deaktiverede brugere</h2>
+          <h2>Active and Disabled Users</h2>
           <div class="toolbar-actions">
-            <button id="refreshUsersButton" class="secondary" type="button">GENINDLÆS</button>
-            <button id="toggleCreateUserButton" type="button" aria-controls="userForm" aria-expanded="false">OPRET BRUGER</button>
+            <button id="refreshUsersButton" class="secondary" type="button">REFRESH</button>
+            <button id="toggleCreateUserButton" type="button" aria-controls="userForm" aria-expanded="false">CREATE USER</button>
           </div>
         </div>
 
         <div class="summary-grid">
           <div class="summary-item">
-            <span class="label">Brugerstatus</span>
-            <output id="userCounts" class="summary-value">Indlæser…</output>
+            <span class="label">User status</span>
+            <output id="userCounts" class="summary-value">Loading…</output>
           </div>
           <div class="summary-item">
-            <span class="label">Bruger proxy lige nu</span>
-            <output id="liveProxyUsers" class="summary-value">Indlæser…</output>
+            <span class="label">Using the proxy now</span>
+            <output id="liveProxyUsers" class="summary-value">Loading…</output>
           </div>
         </div>
 
         <form id="userForm" hidden>
           <div class="grid">
             <div class="form-row">
-              <label class="label" for="proxyUsername">Brugernavn</label>
+              <label class="label" for="proxyUsername">Username</label>
               <input id="proxyUsername" autocomplete="off" required>
             </div>
             <div class="form-row">
-              <label class="label" for="proxyPassword">Adgangskode (min. 12 tegn)</label>
+              <label class="label" for="proxyPassword">Password (at least 12 characters)</label>
               <input id="proxyPassword" type="password" autocomplete="new-password" minlength="12" required>
             </div>
           </div>
           <div class="form-actions">
-            <button type="submit">OPRET</button>
-            <button id="cancelCreateUserButton" class="secondary" type="button">ANNULLER</button>
+            <button type="submit">CREATE</button>
+            <button id="cancelCreateUserButton" class="secondary" type="button">CANCEL</button>
           </div>
         </form>
 
         <div class="table-wrap">
           <table>
-            <thead><tr><th scope="col">Brugernavn</th><th scope="col">Status</th><th scope="col">Aktiv lige nu</th><th scope="col">Handling</th></tr></thead>
+            <thead><tr><th scope="col">Username</th><th scope="col">Status</th><th scope="col">Active now</th><th scope="col">Actions</th></tr></thead>
             <tbody id="userRows"></tbody>
           </table>
         </div>
@@ -246,11 +246,11 @@
 
       <section id="loggingPanel" role="tabpanel" aria-labelledby="loggingTab" tabindex="0" hidden>
         <div class="toolbar">
-          <h2>Docker-logniveau</h2>
-          <button id="saveLogLevelButton" type="button">GEM LOGNIVEAU</button>
+          <h2>Docker Log Level</h2>
+          <button id="saveLogLevelButton" type="button">SAVE LOG LEVEL</button>
         </div>
         <div class="form-row">
-          <label class="label" for="logLevel">Niveau</label>
+          <label class="label" for="logLevel">Level</label>
           <select id="logLevel">
             <option value="DEBUG">DEBUG</option>
             <option value="INFO">INFO</option>
@@ -258,41 +258,41 @@
             <option value="ERROR">ERROR</option>
           </select>
         </div>
-        <p class="status">DEBUG: godkendelser og trafik · INFO: gennemført trafik · WARNING: afvisninger · ERROR: server- og upstream-fejl. Ændringen gælder straks og gemmes ved genstart.</p>
+        <p class="status">DEBUG: authentication and traffic · INFO: completed traffic · WARNING: denied requests · ERROR: server and upstream failures. Changes apply immediately and persist across restarts.</p>
       </section>
 
       <section id="apiPanel" role="tabpanel" aria-labelledby="apiTab" tabindex="0" hidden>
-        <h2>Brug af API'et</h2>
-        <p class="api-intro">API'et giver adgang til proxybrugere, live-status og logniveau. Admin-interfacet bruger en sikker sessionscookie; login og adgangskodeskift følger deres egne endpoints. Betroede backendtjenester kan bruge PROXY_API_TOKEN på endpoints, der understøtter service-token. Send aldrig service-token fra browserkode. Proxy-ruterne til loginverifikation og afbrydelse bruger proxybrugerens egne loginoplysninger.</p>
+        <h2>Using the API</h2>
+        <p class="api-intro">The API provides access to proxy users, live status, and log levels. The admin interface uses a secure session cookie; sign-in and password changes have dedicated endpoints. Trusted backend services can use PROXY_API_TOKEN on endpoints that support service-token authentication. Never expose a service token in browser code. Proxy credential verification and disconnect endpoints use the proxy user's own credentials.</p>
         <div class="summary-grid">
           <div class="summary-item">
-            <span class="label">API-base</span>
+            <span class="label">API base</span>
             <code id="apiBase" class="summary-value">/api/v1</code>
           </div>
           <div class="summary-item">
-            <span class="label">Dokumentation</span>
-            <a class="overview-link" href="/api/docs">Åbn API-dokumentation</a>
-            <a class="overview-link" href="/api/v1/openapi.yaml">OpenAPI-specifikation</a>
+            <span class="label">Documentation</span>
+            <a class="overview-link" href="/api/docs">Open API documentation</a>
+            <a class="overview-link" href="/api/v1/openapi.yaml">OpenAPI specification</a>
           </div>
         </div>
         <div class="table-wrap">
           <table class="api-table">
-            <thead><tr><th scope="col">Metode</th><th scope="col">Rute</th><th scope="col">Formål</th></tr></thead>
+            <thead><tr><th scope="col">Method</th><th scope="col">Route</th><th scope="col">Purpose</th></tr></thead>
             <tbody>
-              <tr><td>POST</td><td><code>/login</code></td><td>Log ind og opret en admin-session</td></tr>
-              <tr><td>GET</td><td><code>/session</code></td><td>Kontrollér den aktuelle admin-session</td></tr>
-              <tr><td>POST</td><td><code>/logout</code></td><td>Log admin-sessionen ud</td></tr>
-              <tr><td>POST</td><td><code>/admin/password</code></td><td>Skift administratorens adgangskode</td></tr>
-              <tr><td>GET, POST</td><td><code>/users</code></td><td>List og opret proxybrugere</td></tr>
-              <tr><td>GET, PATCH, DELETE</td><td><code>/users/{username}</code></td><td>Læs, redigér og slet en proxybruger</td></tr>
-              <tr><td>GET</td><td><code>/status</code></td><td>Læs brugerantal og liveforbrug</td></tr>
-              <tr><td>GET, PATCH</td><td><code>/settings/logging</code></td><td>Læs og ændr Docker-logniveau</td></tr>
-              <tr><td>POST</td><td><code>/proxy/verify</code></td><td>Kontrollér proxylogin uden auth-cache</td></tr>
-              <tr><td>POST</td><td><code>/proxy/disconnect</code></td><td>Afbryd proxybrugerens aktive forbindelser</td></tr>
+              <tr><td>POST</td><td><code>/login</code></td><td>Sign in and create an admin session</td></tr>
+              <tr><td>GET</td><td><code>/session</code></td><td>Check the current admin session</td></tr>
+              <tr><td>POST</td><td><code>/logout</code></td><td>End the admin session</td></tr>
+              <tr><td>POST</td><td><code>/admin/password</code></td><td>Change the administrator password</td></tr>
+              <tr><td>GET, POST</td><td><code>/users</code></td><td>List and create proxy users</td></tr>
+              <tr><td>GET, PATCH, DELETE</td><td><code>/users/{username}</code></td><td>Read, update, and delete a proxy user</td></tr>
+              <tr><td>GET</td><td><code>/status</code></td><td>Read user counts and live usage</td></tr>
+              <tr><td>GET, PATCH</td><td><code>/settings/logging</code></td><td>Read and update the Docker log level</td></tr>
+              <tr><td>POST</td><td><code>/proxy/verify</code></td><td>Verify proxy credentials without the auth cache</td></tr>
+              <tr><td>POST</td><td><code>/proxy/disconnect</code></td><td>Disconnect a proxy user's active connections</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="status">Brugernavn og adgangskode til proxy-ruterne sendes i HTTPS-requestens JSON-body. Se OpenAPI-specifikationen for præcis adgangskontrol for hver rute.</p>
+        <p class="status">Proxy usernames and passwords are sent in the HTTPS request body. See the OpenAPI specification for the exact access requirements for each route.</p>
       </section>
     </div>
 
@@ -337,9 +337,9 @@
       const form = document.getElementById("userForm");
       form.hidden = !form.hidden;
       event.currentTarget.setAttribute("aria-expanded", String(!form.hidden));
-      if (form.hidden) event.currentTarget.textContent = "OPRET BRUGER";
+      if (form.hidden) event.currentTarget.textContent = "CREATE USER";
       else {
-        event.currentTarget.textContent = "LUK FORMULAR";
+        event.currentTarget.textContent = "CLOSE FORM";
         document.getElementById("proxyUsername").focus();
       }
     });
@@ -349,7 +349,7 @@
       form.reset();
       form.hidden = true;
       const button = document.getElementById("toggleCreateUserButton");
-      button.textContent = "OPRET BRUGER";
+      button.textContent = "CREATE USER";
       button.setAttribute("aria-expanded", "false");
       button.focus();
     });
@@ -368,7 +368,7 @@
       if (response.status === 204) return null;
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const error = new Error(body.error || "Forespørgslen fejlede.");
+        const error = new Error(body.error || "The request failed.");
         error.status = response.status;
         throw error;
       }
@@ -395,9 +395,9 @@
         const overview = await api("/status");
         document.getElementById("apiBase").textContent = overview.api_base;
         document.getElementById("userCounts").textContent =
-          `${overview.active_users} aktive / ${overview.disabled_users} deaktiverede`;
+          `${overview.active_users} active / ${overview.disabled_users} disabled`;
         document.getElementById("liveProxyUsers").textContent =
-          `${overview.active_proxy_users} brugere / ${overview.active_proxy_connections} forbindelser`;
+          `${overview.active_proxy_users} users / ${overview.active_proxy_connections} connections`;
       } catch (error) {
         showStatus(error.message, "error");
       }
@@ -411,7 +411,7 @@
         try {
           await Promise.all([loadOverview(), loadUsers()]);
         } catch (error) {
-          showStatus("Live-status kunne ikke opdateres: " + error.message, "error");
+          showStatus("Could not refresh live status: " + error.message, "error");
         } finally {
           activityRefreshBusy = false;
         }
@@ -423,7 +423,7 @@
         const settings = await api("/settings/logging");
         document.getElementById("logLevel").value = settings.level;
       } catch (error) {
-        showStatus("Kunne ikke hente logniveau: " + error.message, "error");
+        showStatus("Could not load the log level: " + error.message, "error");
       }
     }
 
@@ -435,9 +435,9 @@
           method: "PATCH",
           body: JSON.stringify({ level: document.getElementById("logLevel").value })
         });
-        showStatus("Docker-logniveau gemt: " + result.level + ". Ændringen gælder straks.", "success");
+        showStatus("Docker log level saved: " + result.level + ". The change applies immediately.", "success");
       } catch (error) {
-        showStatus("Kunne ikke gemme logniveau: " + error.message, "error");
+        showStatus("Could not save the log level: " + error.message, "error");
       } finally {
         button.disabled = false;
       }
@@ -452,7 +452,7 @@
           const cell = document.createElement("td");
           cell.colSpan = 4;
           cell.className = "empty";
-          cell.textContent = "Ingen proxybrugere oprettet endnu.";
+          cell.textContent = "No proxy users have been created yet.";
           row.append(cell);
           userRows.append(row);
           return;
@@ -462,16 +462,16 @@
           const name = document.createElement("td");
           name.textContent = user.username;
           const state = document.createElement("td");
-          state.textContent = user.disabled ? "Deaktiveret" : "Aktiv";
+          state.textContent = user.disabled ? "Disabled" : "Active";
           const activity = document.createElement("td");
           activity.textContent = user.active_connections > 0
-            ? `I brug · ${user.active_connections}`
-            : "Ingen trafik";
+            ? `In use · ${user.active_connections}`
+            : "No traffic";
           const action = document.createElement("td");
           const toggle = document.createElement("button");
           toggle.type = "button";
           toggle.className = user.disabled ? "" : "secondary";
-          toggle.textContent = user.disabled ? "AKTIVÉR" : "DEAKTIVÉR";
+          toggle.textContent = user.disabled ? "ENABLE" : "DISABLE";
           toggle.addEventListener("click", async () => {
             try {
               await api("/users/" + encodeURIComponent(user.username), {
@@ -486,7 +486,7 @@
           const remove = document.createElement("button");
           remove.type = "button";
           remove.className = "danger";
-          remove.textContent = "SLET";
+          remove.textContent = "DELETE";
           remove.addEventListener("click", async () => {
             try {
               await api("/users/" + encodeURIComponent(user.username), { method: "DELETE" });
@@ -513,7 +513,7 @@
           body: JSON.stringify({ username: form.get("username"), password: form.get("password") })
         });
         showAdmin(result.must_change_password);
-        showStatus(result.must_change_password ? "Skift bootstrap-adgangskoden først." : "Logget ind.", "success");
+        showStatus(result.must_change_password ? "Change the bootstrap password first." : "Signed in.", "success");
       } catch (error) {
         showStatus(error.message, "error");
       }
@@ -530,7 +530,7 @@
           })
         });
         showAdmin(false);
-        showStatus("Administratoradgangskoden er ændret.", "success");
+        showStatus("Administrator password changed.", "success");
         event.currentTarget.reset();
       } catch (error) {
         showStatus(error.message, "error");
@@ -555,23 +555,23 @@
         formNode.reset();
         formNode.hidden = true;
         const createButton = document.getElementById("toggleCreateUserButton");
-        createButton.textContent = "OPRET BRUGER";
+        createButton.textContent = "CREATE USER";
         createButton.setAttribute("aria-expanded", "false");
         createButton.focus();
-        showStatus("Proxybruger oprettet.", "success");
+        showStatus("Proxy user created.", "success");
         try {
           await loadUsers();
         } catch (error) {
-          showStatus("Brugeren blev oprettet, men listen kunne ikke opdateres: " + error.message, "error");
+          showStatus("The user was created, but the list could not be refreshed: " + error.message, "error");
         }
       } catch (error) {
         if (error.status === 409) {
           document.getElementById("proxyPassword").value = "";
           try {
             await loadUsers();
-            showStatus("Brugeren findes allerede; listen er opdateret.", "success");
+            showStatus("The user already exists; the list was refreshed.", "success");
           } catch (refreshError) {
-            showStatus("Brugeren findes allerede, men listen kunne ikke opdateres: " + refreshError.message, "error");
+            showStatus("The user already exists, but the list could not be refreshed: " + refreshError.message, "error");
           }
         } else {
           showStatus(error.message, "error");
@@ -584,9 +584,9 @@
     document.getElementById("refreshUsersButton").addEventListener("click", async () => {
       try {
         await Promise.all([loadOverview(), loadUsers()]);
-        showStatus("Bruger- og live-status er opdateret.", "success");
+        showStatus("User and live status refreshed.", "success");
       } catch (error) {
-        showStatus("Brugerlisten kunne ikke opdateres: " + error.message, "error");
+        showStatus("Could not refresh the user list: " + error.message, "error");
       }
     });
 
@@ -598,7 +598,7 @@
       await api("/logout", { method: "POST" }).catch(() => {});
       adminApp.hidden = true;
       loginPanel.hidden = false;
-      showStatus("Logget ud.");
+      showStatus("Signed out.");
     });
 
     api("/session").then(session => showAdmin(session.must_change_password)).catch(() => {
