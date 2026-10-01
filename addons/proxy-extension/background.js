@@ -6,8 +6,31 @@ let proxyConfig = {
 };
 
 let testCredentials = null;
+let testRequestURL = null;
 let testAuthChallenges = 0;
 let testAuthRejected = false;
+const proxyAuthAttempts = new Map();
+
+function hasProxyCredentials(credentials) {
+  return Boolean(
+    credentials &&
+    typeof credentials.username === "string" &&
+    credentials.username.trim().length > 0 &&
+    typeof credentials.password === "string" &&
+    credentials.password.length >= 12
+  );
+}
+
+function hasValidProxyTarget(host, port) {
+  return typeof host === "string" && host.trim().length > 0 &&
+    Number.isInteger(port) && port > 0 && port <= 65535;
+}
+
+function credentialsForRequest(details, temporaryCredentials, temporaryURL, savedCredentials) {
+  return temporaryCredentials && details.url === temporaryURL
+    ? temporaryCredentials
+    : savedCredentials;
+}
 
 function loadStoredConfig() {
   chrome.storage.local.get(["proxyHost", "proxyPort", "proxyUser", "proxyPass"], (data) => {
@@ -58,9 +81,36 @@ function clearProxy(callback) {
   });
 }
 
+function clearProxyWithoutCredentials() {
+  chrome.storage.local.get(["connected", "proxyUser", "proxyPass"], (stored) => {
+    if (chrome.runtime.lastError) return;
+    if (hasProxyCredentials({ username: stored.proxyUser, password: stored.proxyPass })) return;
+
+    chrome.proxy.settings.get({ incognito: false }, (settings) => {
+      if (chrome.runtime.lastError) return;
+      const extensionOwnsProxy = settings.levelOfControl === "controlled_by_this_extension";
+      if (!stored.connected && !extensionOwnsProxy) return;
+
+      clearProxy((error) => {
+        if (!error) chrome.storage.local.set({ connected: false });
+      });
+    });
+  });
+}
+
+clearProxyWithoutCredentials();
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "connect") {
     const config = request.payload || proxyConfig;
+    if (!hasValidProxyTarget(config.host, config.port) || !hasProxyCredentials(config)) {
+      sendResponse({
+        status: "error",
+        error: "Angiv en gyldig proxy samt brugernavn og adgangskode (mindst 12 tegn)."
+      });
+      return;
+    }
+    proxyConfig = { ...config };
     applyProxy(config.host, config.port, (error) => {
       if (error) {
         sendResponse({ status: "error", error: error });
@@ -90,6 +140,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ success: false, error: "Angiv en gyldig server og port." });
       return;
     }
+    if (!hasProxyCredentials({ username, password })) {
+      sendResponse({
+        success: false,
+        error: "Indtast et proxy-brugernavn og en adgangskode på mindst 12 tegn."
+      });
+      return;
+    }
 
     testCredentials = { username, password };
     testAuthChallenges = 0;
@@ -114,17 +171,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         const finishTest = (result) => {
           if (result.success && wasConnected) {
+            proxyConfig = { host, port, username, password };
             testCredentials = null;
+            testRequestURL = null;
             sendResponse(result);
             return;
           }
 
-          testCredentials = wasConnected
-            ? { username: previousConfig.username, password: previousConfig.password }
-            : null;
+          testCredentials = null;
+          testRequestURL = null;
+          if (wasConnected) proxyConfig = { ...previousConfig };
 
           const restoreComplete = (error) => {
             testCredentials = null;
+            testRequestURL = null;
             if (error) {
               sendResponse({
                 success: false,
@@ -153,20 +213,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000);
+          testRequestURL = "https://1.1.1.1/cdn-cgi/trace";
           let result;
 
           try {
-            const res = await fetch("https://1.1.1.1/cdn-cgi/trace", {
+            const res = await fetch(testRequestURL, {
               method: "GET",
               cache: "no-store",
               signal: controller.signal
             });
 
             if (res.status === 204 || res.ok) {
-              result = {
-                success: true,
-                credentialsVerified: testAuthChallenges > 0
-              };
+              result = testAuthChallenges > 0
+                ? { success: true, credentialsVerified: true }
+                : {
+                    success: false,
+                    error: "Chrome genbrugte et cachet proxy-login. Luk alle browser-vinduer helt, åbn browseren igen, og test igen."
+                  };
             } else if (res.status === 407) {
               result = {
                 success: false,
@@ -190,6 +253,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 };
           } finally {
             clearTimeout(timeoutId);
+            testRequestURL = null;
           }
 
           finishTest(result);
@@ -200,33 +264,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Autentificering
+// Proxy credentials are supplied only after a challenge; empty credentials always cancel.
 chrome.webRequest.onAuthRequired.addListener(
-  (details) => {
-    if (details.isProxy) {
-      if (testCredentials) {
-        testAuthChallenges += 1;
-        if (testAuthChallenges > 1) {
-          testAuthRejected = true;
-          return { cancel: true };
-        }
-      }
-      const activeAuth = testCredentials || proxyConfig;
-      return {
-        authCredentials: {
-          username: activeAuth.username,
-          password: activeAuth.password
-        }
-      };
+  (details, callback) => {
+    if (!details.isProxy) {
+      callback({});
+      return;
     }
+
+    const isTestRequest = Boolean(testCredentials && details.url === testRequestURL);
+    const activeAuth = credentialsForRequest(details, testCredentials, testRequestURL, proxyConfig);
+    if (!hasProxyCredentials(activeAuth)) {
+      if (isTestRequest) testAuthRejected = true;
+      callback({ cancel: true });
+      return;
+    }
+
+    const attempts = proxyAuthAttempts.get(details.requestId) || 0;
+    if (attempts > 0) {
+      proxyAuthAttempts.delete(details.requestId);
+      if (isTestRequest) testAuthRejected = true;
+      callback({ cancel: true });
+      return;
+    }
+
+    proxyAuthAttempts.set(details.requestId, attempts + 1);
+    if (isTestRequest) testAuthChallenges += 1;
+    callback({
+      authCredentials: {
+        username: activeAuth.username,
+        password: activeAuth.password
+      }
+    });
   },
   { urls: ["<all_urls>"] },
-  ["blocking"]
+  ["asyncBlocking"]
+);
+
+chrome.webRequest.onCompleted.addListener(
+  details => proxyAuthAttempts.delete(details.requestId),
+  { urls: ["<all_urls>"] }
 );
 
 // Fang fejl når tunnelen eller proxyen dør og vis custom fejlside
 chrome.webRequest.onErrorOccurred.addListener(
   (details) => {
+    proxyAuthAttempts.delete(details.requestId);
     if (details.type !== "main_frame") return;
 
     chrome.storage.local.get(["connected"], (store) => {

@@ -37,6 +37,9 @@ jobs:
         run: go test ./...
         working-directory: addons/proxy-router
 
+      - name: Test proxy extension authentication
+        run: node --test addons/proxy-extension/background.test.cjs
+
       - name: Render and validate configuration
         run: sudo -E ./scripts/selftest.sh
 

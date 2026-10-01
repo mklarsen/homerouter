@@ -16,6 +16,13 @@ document.getElementById("currentVersion").textContent =
   "v" + chrome.runtime.getManifest().version;
 
 function saveProxySettings(host, port, username, password, testResult) {
+  if (!testResult.success || testResult.credentialsVerified !== true) {
+    saveSettingsBtn.disabled = false;
+    feedback.className = "feedback-error";
+    feedback.textContent = testResult.error || "Proxy-login blev ikke verificeret. Indstillingerne blev ikke gemt.";
+    return;
+  }
+
   feedback.className = "feedback-loading";
   feedback.textContent = "Gemmer indstillinger...";
 
@@ -32,15 +39,9 @@ function saveProxySettings(host, port, username, password, testResult) {
       if (chrome.runtime.lastError) {
         feedback.className = "feedback-error";
         feedback.textContent = "Kunne ikke gemme: " + chrome.runtime.lastError.message;
-      } else if (testResult.success && testResult.credentialsVerified === false) {
-        feedback.className = "feedback-warning";
-        feedback.textContent = "Proxyen virker via cachet login; credentials er ikke verificeret.";
-      } else if (testResult.success) {
+      } else {
         feedback.className = "feedback-success";
         feedback.textContent = "Gemt. Login og proxyforbindelse er verificeret.";
-      } else {
-        feedback.className = "feedback-error";
-        feedback.textContent = "Indstillinger gemt; testen fejlede: " + testResult.error;
       }
     }
   );
@@ -56,7 +57,9 @@ chrome.storage.local.get(
     }
 
     const stored = result || {};
-    updateUI(stored.connected || false);
+    const hasCredentials = typeof stored.proxyUser === "string" && stored.proxyUser.trim().length > 0 &&
+      typeof stored.proxyPass === "string" && stored.proxyPass.length >= 12;
+    updateUI(Boolean(stored.connected && hasCredentials));
     cfgHost.value = stored.proxyHost || "vpn.homerouter.io";
     cfgPort.value = stored.proxyPort || "443";
     cfgUser.value = stored.proxyUser || "";
@@ -75,7 +78,13 @@ saveSettingsBtn.addEventListener("click", () => {
   const host = cfgHost.value.trim() || "vpn.homerouter.io";
   const port = parseInt(cfgPort.value.trim(), 10) || 443;
   const username = cfgUser.value.trim();
-  const password = cfgPass.value.trim();
+  const password = cfgPass.value;
+
+  if (!username || password.length < 12) {
+    feedback.className = "feedback-error";
+    feedback.textContent = "Indtast brugernavn og adgangskode på mindst 12 tegn.";
+    return;
+  }
 
   saveSettingsBtn.disabled = true;
   feedback.className = "feedback-loading";
@@ -97,6 +106,7 @@ saveSettingsBtn.addEventListener("click", () => {
 
       saveProxySettings(host, port, username, password, {
         success: Boolean(res && res.success),
+        credentialsVerified: Boolean(res && res.credentialsVerified),
         error: res && res.error ? res.error : "Ingen testsvar fra proxyen."
       });
     }
@@ -136,6 +146,11 @@ btn.addEventListener("click", () => {
         password: result.proxyPass || ""
       };
 
+      if (!config.username.trim() || config.password.length < 12) {
+        showConnectionError("Indtast og gem et proxy-brugernavn samt en adgangskode på mindst 12 tegn.");
+        return;
+      }
+
       btn.disabled = true;
       feedback.className = "feedback-loading";
       feedback.textContent = "Validerer login før tilslutning...";
@@ -149,7 +164,7 @@ btn.addEventListener("click", () => {
             return;
           }
 
-          if (!testResponse || !testResponse.success) {
+          if (!testResponse || !testResponse.success || testResponse.credentialsVerified !== true) {
             btn.disabled = false;
             showConnectionError(
               testResponse && testResponse.error
@@ -177,13 +192,8 @@ btn.addEventListener("click", () => {
                 return;
               }
 
-              if (testResponse.credentialsVerified === false) {
-                feedback.className = "feedback-warning";
-                feedback.textContent = "Proxyen er aktiv via cachet login; credentials er ikke verificeret.";
-              } else {
-                feedback.className = "feedback-success";
-                feedback.textContent = "Login valideret; proxyen er tilsluttet.";
-              }
+              feedback.className = "feedback-success";
+              feedback.textContent = "Login valideret; proxyen er tilsluttet.";
               updateUI(true);
             }
           );
