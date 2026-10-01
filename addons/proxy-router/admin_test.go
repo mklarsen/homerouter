@@ -26,9 +26,9 @@ func TestVPNAdminLoginRotationAndProxyUserAPI(t *testing.T) {
 	page := httptest.NewRecorder()
 	service.ServeHTTP(page, pageRequest)
 	pageBody := page.Body.String()
-	if page.Code != http.StatusOK || !strings.Contains(pageBody, "PROXY-ADMINISTRATION") ||
-		!strings.Contains(pageBody, "Aktive og deaktiverede brugere") ||
-		!strings.Contains(pageBody, "Docker-logniveau") || !strings.Contains(pageBody, "Brug af API'et") {
+	if page.Code != http.StatusOK || !strings.Contains(pageBody, "PROXY ADMINISTRATION") ||
+		!strings.Contains(pageBody, "Active and Disabled Users") ||
+		!strings.Contains(pageBody, "Docker Log Level") || !strings.Contains(pageBody, "Using the API") {
 		t.Fatalf("admin page not served: status %d", page.Code)
 	}
 

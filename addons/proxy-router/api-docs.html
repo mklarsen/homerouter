@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="da">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -68,62 +68,62 @@
   <main>
     <header>
       <h1>Homerouter Proxy API</h1>
-      <div class="muted">Versioneret REST API · JSON · HTTPS</div>
+      <div class="muted">Versioned REST API · JSON · HTTPS</div>
       <nav>
-        <a href="/vpnadm">VPN administration</a>
+        <a href="/vpnadm">Proxy administration</a>
         <a href="/api/v1/openapi.yaml" download>Download OpenAPI YAML</a>
       </nav>
     </header>
 
     <section>
-      <h2>Adgang</h2>
-      <p>API-base: <code>https://vpn.homerouter.io/api/v1</code></p>
-      <p>Bruger admin-siden med den sikre session-cookie, eller send <code>Authorization: Bearer &lt;token&gt;</code> fra et betroet backend-system.</p>
-      <p class="muted">Service-tokenet konfigureres som <code>PROXY_API_TOKEN</code> på proxyen, skal være mindst 32 tegn og er ikke beregnet til browserkode. Uden token bruger server-til-server-klienter admin-login og session-cookie.</p>
-      <p>Efter første admin-login skal bootstrap-passwordet skiftes, før brugeradministration er tilladt.</p>
+      <h2>Access</h2>
+      <p>API base: <code>https://vpn.homerouter.io/api/v1</code></p>
+      <p>Use the admin page with its secure session cookie, or send <code>Authorization: Bearer &lt;token&gt;</code> from a trusted backend service.</p>
+      <p class="muted">Configure the service token as <code>PROXY_API_TOKEN</code> on the proxy. It must be at least 32 characters and must not be exposed in browser code. Without a token, server-to-server clients can use the admin login and session cookie.</p>
+      <p>After the first admin sign-in, change the bootstrap password before managing users.</p>
     </section>
 
     <section>
-      <h2>Ruter</h2>
+      <h2>Routes</h2>
       <table>
-        <thead><tr><th>Metode</th><th>Rute</th><th>Beskrivelse</th><th>Success</th></tr></thead>
+        <thead><tr><th>Method</th><th>Route</th><th>Description</th><th>Success</th></tr></thead>
         <tbody>
-          <tr><td class="method">GET</td><td><code>/status</code></td><td>API-, datafil-, logniveau- og live trafikoverblik</td><td><code>200</code></td></tr>
-          <tr><td class="method">GET/PATCH</td><td><code>/settings/logging</code></td><td>Læs og ændr persistent Docker-logniveau</td><td><code>200</code></td></tr>
-          <tr><td class="method">POST</td><td><code>/proxy/disconnect</code></td><td>Luk denne brugers aktive forbindelser</td><td><code>200</code></td></tr>
-          <tr><td class="method">POST</td><td><code>/proxy/verify</code></td><td>Verificér proxy-login direkte over HTTPS</td><td><code>200</code> / <code>401</code></td></tr>
-          <tr><td class="method">GET</td><td><code>/users</code></td><td>Brugermetadata og aktive requests/tunneler</td><td><code>200</code></td></tr>
-          <tr><td class="method">POST</td><td><code>/users</code></td><td>Opret proxybruger; eksisterende navn giver <code>409</code></td><td><code>201</code> / <code>409</code></td></tr>
-          <tr><td class="method">GET</td><td><code>/users/{username}</code></td><td>Læs én brugers metadata</td><td><code>200</code></td></tr>
-          <tr><td class="method">PATCH</td><td><code>/users/{username}</code></td><td>Skift password, disabled-status eller begge</td><td><code>204</code></td></tr>
-          <tr><td class="method">DELETE</td><td><code>/users/{username}</code></td><td>Slet proxybruger</td><td><code>204</code></td></tr>
+          <tr><td class="method">GET</td><td><code>/status</code></td><td>API, data file, log level, and live traffic overview</td><td><code>200</code></td></tr>
+          <tr><td class="method">GET/PATCH</td><td><code>/settings/logging</code></td><td>Read or update the persistent Docker log level</td><td><code>200</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/proxy/disconnect</code></td><td>Close this user's active connections</td><td><code>200</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/proxy/verify</code></td><td>Verify proxy credentials directly over HTTPS</td><td><code>200</code> / <code>401</code></td></tr>
+          <tr><td class="method">GET</td><td><code>/users</code></td><td>User metadata and active requests/tunnels</td><td><code>200</code></td></tr>
+          <tr><td class="method">POST</td><td><code>/users</code></td><td>Create a proxy user; duplicate names return <code>409</code></td><td><code>201</code> / <code>409</code></td></tr>
+          <tr><td class="method">GET</td><td><code>/users/{username}</code></td><td>Read one user's metadata</td><td><code>200</code></td></tr>
+          <tr><td class="method">PATCH</td><td><code>/users/{username}</code></td><td>Change the password, disabled state, or both</td><td><code>204</code></td></tr>
+          <tr><td class="method">DELETE</td><td><code>/users/{username}</code></td><td>Delete a proxy user</td><td><code>204</code></td></tr>
         </tbody>
       </table>
-      <p class="muted">Alle JSON-requests bruger <code>Content-Type: application/json</code>. Fejl returneres som <code>{"error":"..."}</code>. Passwords skal være mindst 12 tegn.</p>
+      <p class="muted">All JSON requests use <code>Content-Type: application/json</code>. Errors are returned as <code>{"error":"..."}</code>. Passwords must be at least 12 characters.</p>
     </section>
 
     <section>
-      <h2>Docker-logniveau</h2>
-      <p><code>GET /api/v1/settings/logging</code> viser det aktive niveau. <code>PATCH /api/v1/settings/logging</code> med <code>{"level":"DEBUG"}</code> ændrer det straks og gemmer valget til genstart.</p>
-      <p>Gyldige niveauer: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>. Loglinjer indeholder bruger, remote IP, target host, status, bytes og varighed; passwords, auth-headere, URL paths og request bodies logges ikke.</p>
-      <p>Følg Docker-output med <code>docker compose logs -f vpn-proxy</code>.</p>
-      <p>Proxyoversigten opdaterer live-brugere og forbindelser hvert femte sekund. En bruger tælles kun, mens en HTTP-request behandles eller en CONNECT-tunnel er åben; det er ikke en vedvarende login-session.</p>
+      <h2>Docker Log Level</h2>
+      <p><code>GET /api/v1/settings/logging</code> returns the current level. Use <code>PATCH /api/v1/settings/logging</code> with <code>{"level":"DEBUG"}</code> to apply and persist a new level immediately.</p>
+      <p>Valid levels: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>. Log lines include username, remote IP, target host, status, bytes, and duration; passwords, auth headers, URL paths, and request bodies are never logged.</p>
+      <p>Follow Docker output with <code>docker compose logs -f vpn-proxy</code>.</p>
+      <p>The admin view refreshes live users and connections every five seconds. A user is counted only while an HTTP request is processing or a CONNECT tunnel is open; this is not a persistent login session.</p>
     </section>
 
     <section>
-      <h2>Afbryd proxyforbindelser</h2>
-      <p>Extensionens <strong>AFBRYD TUNNEL</strong> sender proxy-brugernavn og -password over HTTPS til <code>POST /api/v1/proxy/disconnect</code>. Serveren annullerer alle aktive requests og tunneler for brugernavnet. Hvis samme bruger er sat op på flere enheder, afbrydes de alle.</p>
-      <p class="muted">Et tvunget browser-/OS-stop kan ikke sende afbrydelsesbeskeden; TCP-forbindelserne lukker i stedet ved normal socket-oprydning.</p>
+      <h2>Disconnect Proxy Connections</h2>
+      <p>The extension's <strong>DISCONNECT TUNNEL</strong> action sends the proxy username and password over HTTPS to <code>POST /api/v1/proxy/disconnect</code>. The server cancels all active requests and tunnels for that username. If the account is used on multiple devices, all of them are disconnected.</p>
+      <p class="muted">A forced browser or OS shutdown cannot send the disconnect request; TCP connections close through normal socket cleanup instead.</p>
     </section>
 
     <section>
-      <h2>Verificér proxy-login</h2>
-      <p>Extensionen kontrollerer brugernavn/password direkte mod <code>POST /api/v1/proxy/verify</code> over HTTPS, før den tester proxytrafikken. Det omgår Chrome's cachede proxy-auth; du behøver ikke genstarte browseren efter credential-ændringer.</p>
-      <p class="muted">Endpointet returnerer kun om login er gyldigt og opretter ikke en session.</p>
+      <h2>Verify Proxy Credentials</h2>
+      <p>The extension verifies the username and password directly with <code>POST /api/v1/proxy/verify</code> over HTTPS before testing proxy traffic. This bypasses Chrome's cached proxy authentication, so the browser does not need to be restarted after credential changes.</p>
+      <p class="muted">The endpoint only reports whether the credentials are valid; it does not create a session.</p>
     </section>
 
     <section>
-      <h2>Eksempel: opret bruger</h2>
+      <h2>Example: Create a User</h2>
       <pre>curl --request POST \
   --url https://vpn.homerouter.io/api/v1/users \
   --header 'Authorization: Bearer &lt;PROXY_API_TOKEN&gt;' \
