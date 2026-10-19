@@ -12,6 +12,10 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+- Fix DeClean's toolbar popup collapsing to Chrome's initial narrow viewport by giving the popup document a stable intrinsic width.
+- Simplify DeClean's popup to status, setup and a single Clean action; run saved cache-only presets immediately while retaining confirmation for risky cleanup.
+- Style DeClean to match the original proxy extension, with a dark neon default and distinct inactive, active, clearing and approval-pending states.
+- Add DeClean (Developer Cleaner), a standalone, default-off extension POC with cleanup presets, per-type origin rules, confirmation, opt-in automation, settings sync and an About section explaining its name.
 - Add proxy-router and proxy-extension addons under `addons/`.
 - Add an independent standard-library Go HTTP/CONNECT proxy with `/vpnadm` and a user-management API.
 - Add versioned REST CRUD, optional Bearer-token service auth, OpenAPI/Bruno docs, and a host-path overview for proxy data.

@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "DeClean by homerouter.io",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "description": "Standalone developer cleanup presets, exact-origin rules, and opt-in automation. Disabled by default.",
+  "permissions": ["browsingData", "storage", "tabs", "alarms", "contextMenus"],
+  "incognito": "not_allowed",
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DeClean",
+    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "options_page": "options.html",
+  "commands": {
+    "review-cleanup": { "description": "Review the selected cleanup preset", "suggested_key": { "default": "Alt+Shift+X" } }
+  }
+}
