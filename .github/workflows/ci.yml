@@ -11,6 +11,42 @@ permissions:
   contents: read
 
 jobs:
+  developer-cleaner:
+    name: developer cleaner POC
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: addons/developer-cleaner
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: addons/developer-cleaner/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Check runtime syntax
+        run: |
+          node --check core.js
+          node --check background.js
+          node --check ui.js
+          node --check build.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: developer-cleaner-poc
+          path: |
+            addons/developer-cleaner/manifest.json
+            addons/developer-cleaner/background.js
+            addons/developer-cleaner/core.js
+            addons/developer-cleaner/ui.js
+            addons/developer-cleaner/styles.css
+            addons/developer-cleaner/popup.html
+            addons/developer-cleaner/options.html
+            addons/developer-cleaner/icons/
+            addons/developer-cleaner/README.md
+
   lint:
     name: lint & render
     runs-on: ubuntu-24.04

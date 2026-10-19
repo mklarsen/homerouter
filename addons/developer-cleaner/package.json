@@ -1,0 +1,13 @@
+{
+  "name": "homerouter-developer-cleaner-poc",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "node build.cjs",
+    "test": "node --test core.test.cjs background.test.cjs"
+  },
+  "devDependencies": {
+    "lucide-static": "^1.59.0",
+    "sharp": "^0.35.5"
+  }
+}
