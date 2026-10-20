@@ -28,12 +28,15 @@ load_env "$ENV_SOURCE"
 ok "config loaded (WAN ${WAN_IP4_PRIMARY:-unset}, LAN ${LAN_IP4}/${LAN_PREFIXLEN4})"
 
 run_pass() {
-    local mode="$1" out="$WORK_DIR/srv$1"
+    local mode="$1" out="$WORK_DIR/srv$1" docker_host_rule
     mkdir -p "$out"
 
-    # The optional blocks are gated the same way, so exercising them together is
-    # enough to validate both rendered variants.
-    SRV_ENABLE_OVERRIDE="$mode" DOCKER_COMPAT_OVERRIDE="$mode" load_env "$ENV_SOURCE"
+    # Optional blocks share the mode switch, so both rendered variants are
+    # validated without changing the host.
+    SRV_ENABLE_OVERRIDE="$mode" DOCKER_COMPAT_OVERRIDE="$mode" \
+        DOCKER_HOST_INPUT_ENABLE_OVERRIDE="$mode" \
+        DOCKER_HOST_INPUT_TCP_PORT_OVERRIDE="5005" load_env "$ENV_SOURCE"
+    docker_host_rule="iifname \"br-*\" ip saddr $DOCKER_HOST_INPUT_NET4 ip daddr $LAN_IP4 tcp dport $DOCKER_HOST_INPUT_TCP_PORT accept"
 
     log "Rendering templates (SRV_ENABLE=$mode)"
     render_template "$CONF_DIR/hostapd/hostapd.conf.template"   "$out/hostapd.conf"
@@ -54,6 +57,16 @@ run_pass() {
         check "nftables ruleset syntax" nft --check --file "$out/nftables.conf"
     else
         warn "nft not installed -- skipping firewall syntax check"
+    fi
+
+    if [[ $mode == "1" ]]; then
+        check "Docker-to-host rule uses configured subnet and port" grep -Fq \
+            "$docker_host_rule" \
+            "$out/nftables.conf"
+    else
+        check "Docker-to-host rule remains commented by default" grep -Fq \
+            "#         $docker_host_rule" \
+            "$out/nftables.conf"
     fi
 
     if command -v dnsmasq >/dev/null 2>&1; then

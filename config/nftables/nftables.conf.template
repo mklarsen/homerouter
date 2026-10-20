@@ -78,6 +78,9 @@ ${SRV_CMT}        iifname $SRV icmp type echo-request accept
         # iifname $WAN ip daddr $IP4_PRI tcp dport 22 ct state new \
         #     limit rate 10/minute accept comment "SSH from internet"
 
+        # --- Optional Docker-to-host service port ---
+    ${DOCKER_HOST_INPUT_CMT}        iifname "br-*" ip saddr $DOCKER_HOST_INPUT_NET4 ip daddr $LAN_IP4 tcp dport $DOCKER_HOST_INPUT_TCP_PORT accept comment "Docker -> host service"
+
         limit rate 5/minute burst 10 packets \
             log prefix "nft input drop: " level info
         counter comment "input policy drop"
