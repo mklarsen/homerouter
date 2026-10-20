@@ -12,6 +12,8 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-20
+
 - Add a default-off, subnet-scoped exception for a Docker reverse proxy to reach one host TCP service port.
 - Fix DeClean's toolbar popup collapsing to Chrome's initial narrow viewport by giving the popup document a stable intrinsic width.
 - Simplify DeClean's popup to status, setup and a single Clean action; run saved cache-only presets immediately while retaining confirmation for risky cleanup.
