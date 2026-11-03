@@ -1,0 +1,24 @@
+# Add this to /opt/stacks/docker-compose.yml to deploy homerouter-hawk
+# Copy the whole service block below and add it to the services: section
+
+  homerouter-hawk:
+    container_name: homerouter-hawk
+    image: homerouter-hawk:latest
+    build:
+      context: ./addons/homerouter-hawk
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - ./homerouter-hawk-data:/data
+    networks:
+      - default
+    environment:
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD", "test", "-f", "/data/ip-tracker.db"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.example.description=IP address tracking service for WAN prefix changes"
