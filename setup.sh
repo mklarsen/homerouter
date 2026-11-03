@@ -114,6 +114,9 @@ fi
 if (( ${#WIFI_PASSPHRASE} < 8 || ${#WIFI_PASSPHRASE} > 63 )); then
     die "WIFI_PASSPHRASE must be 8-63 characters (got ${#WIFI_PASSPHRASE})"
 fi
+if [[ $WIFI_PASSPHRASE == *$'\n'* ]] || [[ $WIFI_PASSPHRASE == *$'\r'* ]]; then
+    die "WIFI_PASSPHRASE contains newlines (injection risk)"
+fi
 if [[ $WIFI_SSID == *$'\n'* || ${#WIFI_SSID} -gt 32 ]]; then
     die "WIFI_SSID must be a single line of at most 32 characters"
 fi
