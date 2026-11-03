@@ -96,6 +96,9 @@ export default function Dashboard() {
             <div className="metric-card">
               <div className="metric-header">
                 <h3>Current IPv6</h3>
+                {latest.ipv6 && latest.ipv6.includes(':') && (
+                  <span className="status-badge active">Active</span>
+                )}
               </div>
               {latest.ipv6 && latest.ipv6.includes(':') ? (
                 <>
