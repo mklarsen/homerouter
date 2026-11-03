@@ -81,8 +81,8 @@ app.get('/api/latest', basicAuthMiddleware, (req, res) => {
 // Serve static React build
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// SPA fallback
-app.get('*', (req, res) => {
+// SPA fallback - serve index.html for any unmatched route
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
