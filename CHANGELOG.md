@@ -12,6 +12,10 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix nftables.service failing to start on boot when Docker is active. Docker and nftables both manage firewall rules via iptables-nft. The nftables systemd service now starts *after* Docker with a retry policy, ensuring Docker's rules are re-applied after the `flush ruleset` command.
+
 ## [0.4.2] - 2026-10-20
 
 - Add a default-off, subnet-scoped exception for a Docker reverse proxy to reach one host TCP service port.
