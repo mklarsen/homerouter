@@ -1,12 +1,13 @@
-# Add this to /opt/stacks/docker-compose.yml to deploy homerouter-hawk
-# Copy the whole service block below and add it to the services: section
+# Add these services to /opt/stacks/docker-compose.yml
+# Copy both service blocks below and add to the services: section
 
+  # IP tracking backend service
   homerouter-hawk:
     container_name: homerouter-hawk
-    image: homerouter-hawk:latest
+    image: ghcr.io/mklarsen/homerouter-hawk:latest
     build:
-      context: ./addons/homerouter-hawk
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./addons/homerouter-hawk/Dockerfile
     restart: always
     volumes:
       - ./homerouter-hawk-data:/data
@@ -20,5 +21,31 @@
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # Web UI + API
+  homerouter-hawk-ui:
+    container_name: homerouter-hawk-ui
+    image: ghcr.io/mklarsen/homerouter-hawk-ui:latest
+    build:
+      context: .
+      dockerfile: ./addons/homerouter-hawk/ui/Dockerfile
+    restart: always
+    depends_on:
+      homerouter-hawk:
+        condition: service_healthy
+    environment:
+      DATABASE_PATH: /data/ip-tracker.db
+      HAWK_USER: ${HAWK_UI_USER:-admin}
+      HAWK_PASSWORD: ${HAWK_UI_PASSWORD:-changeme}
+    volumes:
+      - ./homerouter-hawk-data:/data:ro
+    networks:
+      - traefik-edge
     labels:
-      - "com.example.description=IP address tracking service for WAN prefix changes"
+      traefik.enable: "true"
+      traefik.docker.network: traefik-edge
+      traefik.http.routers.hawk-ui.rule: Host(`hawk.homerouter.io`)
+      traefik.http.routers.hawk-ui.entrypoints: websecure
+      traefik.http.routers.hawk-ui.tls: "true"
+      traefik.http.routers.hawk-ui.tls.certresolver: letsencrypt
+      traefik.http.services.hawk-ui.loadbalancer.server.port: "3000"

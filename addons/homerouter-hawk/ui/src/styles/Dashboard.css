@@ -1,0 +1,239 @@
+:root {
+  --bg-primary: #0a0e27;
+  --bg-secondary: #1a1f3a;
+  --bg-tertiary: #252d48;
+  --text-primary: #e0e6ff;
+  --text-secondary: #a0a9c9;
+  --accent-green: #00ff41;
+  --accent-cyan: #00d4ff;
+  --accent-magenta: #ff00ff;
+  --accent-red: #ff4444;
+  --border-color: #3a4460;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan), var(--accent-magenta));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
+}
+
+h2 {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: 40px;
+  font-weight: 300;
+}
+
+h3 {
+  font-size: 1.1rem;
+  color: var(--accent-cyan);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.card {
+  background: rgba(26, 31, 58, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 30px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
+}
+
+.latest {
+  background: linear-gradient(135deg, rgba(0, 255, 65, 0.1) 0%, rgba(255, 0, 255, 0.1) 100%);
+  border: 1px solid var(--accent-green);
+}
+
+.ip-display {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.ip-display div {
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-green);
+}
+
+.ip-display code {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.1rem;
+  color: var(--accent-green);
+  word-break: break-all;
+}
+
+.timestamp {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  border-left-color: var(--accent-cyan) !important;
+}
+
+.chart-container {
+  background: rgba(26, 31, 58, 0.8);
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+thead tr {
+  border-bottom: 2px solid var(--accent-cyan);
+}
+
+th {
+  padding: 15px;
+  text-align: left;
+  color: var(--accent-cyan);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+td {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+tbody tr {
+  transition: background 0.2s ease;
+}
+
+tbody tr:hover {
+  background: rgba(0, 255, 65, 0.05);
+}
+
+tbody tr.changed {
+  background: rgba(255, 0, 255, 0.1);
+}
+
+code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: var(--accent-green);
+  font-size: 0.9em;
+}
+
+.btn-export {
+  display: block;
+  margin: 40px auto;
+  padding: 15px 40px;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-export:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 255, 65, 0.3);
+}
+
+.btn-export:active {
+  transform: translateY(0);
+}
+
+.error {
+  color: var(--accent-red);
+  padding: 20px;
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid var(--accent-red);
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 20px 10px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  .ip-display {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    font-size: 0.9rem;
+  }
+
+  td, th {
+    padding: 8px;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  .card {
+    background: white;
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3 {
+    color: #000;
+  }
+
+  code {
+    background: #f5f5f5;
+    color: #333;
+  }
+
+  .btn-export {
+    display: none;
+  }
+}
