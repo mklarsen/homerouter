@@ -81,7 +81,7 @@ insert_and_detect_change() {
     if [[ -n "$(sqlite3 "$DB_FILE" "SELECT id FROM ip_history LIMIT 1;")" ]]; then
         local last_ipv4
         local last_ipv6
-        read -r last_ipv4 last_ipv6 < <(sqlite3 "$DB_FILE" "SELECT ipv4, ipv6 FROM ip_history ORDER BY id DESC LIMIT 1;")
+        read -r last_ipv4 last_ipv6 < <(sqlite3 -separator ' ' "$DB_FILE" "SELECT ipv4, ipv6 FROM ip_history ORDER BY id DESC LIMIT 1;")
         
         if [[ "$ipv4" != "$last_ipv4" ]] || [[ "$ipv6" != "$last_ipv6" ]]; then
             change=1
