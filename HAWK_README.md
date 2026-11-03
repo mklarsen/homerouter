@@ -86,11 +86,7 @@ Password: (from .env HAWK_UI_PASSWORD)
 
 #### Via Traefik (hawk.homerouter.io)
 Requires:
-<<<<<<< HEAD
-- DNS pointing `hawk.homerouter.io` to 80.248.139.132
-=======
 - DNS pointing `hawk.homerouter.io` to 198.51.100.132 (ISP-provided external IP)
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
 - Traefik file-based routing configured in `/opt/stacks/dynamic/all-routes.yml`
 
 ```
@@ -119,11 +115,7 @@ HAWK_UI_PASSWORD=rsdfc¤R%#87687!
 CREATE TABLE ip_history (
   id INTEGER PRIMARY KEY,
   timestamp TEXT,        -- ISO 8601
-<<<<<<< HEAD
-  ipv4 TEXT,             -- IPv4 address (e.g., "80.248.139.130")
-=======
   ipv4 TEXT,             -- IPv4 address (e.g., "198.51.100.130" - RFC 5737 doc address)
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
   ipv6 TEXT,             -- IPv6 address (contains ':' if valid)
   change INTEGER         -- 1 if IP changed, 0 if stable
 );
@@ -148,24 +140,15 @@ Returns service health status.
 ### GET /api/latest
 Returns the most recent IP record.
 ```json
-<<<<<<< HEAD
-{"timestamp":"2026-11-03 21:00:00","ipv4":"80.248.139.130","ipv6":"80.248.139.130"}
-=======
 {"timestamp":"2026-11-03 21:00:00","ipv4":"198.51.100.130","ipv6":"2001:db8::1"}
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
 ```
 
 ### GET /api/ip-history?limit=100
 Returns full IP history (up to limit).
 ```json
 [
-<<<<<<< HEAD
-  {"id":1,"timestamp":"2026-11-03 20:33:04","ipv4":"80.248.139.130","ipv6":"80.248.139.130","change":0},
-  {"id":2,"timestamp":"2026-11-03 20:47:21","ipv4":"80.248.139.130","ipv6":"80.248.139.130","change":1}
-=======
   {"id":1,"timestamp":"2026-11-03 20:33:04","ipv4":"198.51.100.130","ipv6":"2001:db8::1","change":0},
   {"id":2,"timestamp":"2026-11-03 20:47:21","ipv4":"198.51.100.131","ipv6":"2001:db8::1","change":1}
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
 ]
 ```
 
@@ -173,11 +156,7 @@ Returns full IP history (up to limit).
 Returns only records where IP changed.
 ```json
 [
-<<<<<<< HEAD
-  {"id":2,"timestamp":"2026-11-03 20:47:21","ipv4":"80.248.139.130","ipv6":"80.248.139.130"}
-=======
   {"id":2,"timestamp":"2026-11-03 20:47:21","ipv4":"198.51.100.131","ipv6":"2001:db8::1"}
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
 ]
 ```
 
