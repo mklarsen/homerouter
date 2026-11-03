@@ -1,0 +1,10 @@
+# Homerouter override: ensure nftables starts after Docker so that flush ruleset
+# doesn't destroy Docker's iptables-nft rules before Docker has a chance to
+# recreate them.
+
+[Unit]
+After=docker.service
+
+[Service]
+Restart=on-failure
+RestartSec=5

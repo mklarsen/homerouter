@@ -147,6 +147,7 @@ HOSTAPD_RENDERED="$RENDER_DIR/hostapd.conf"
 NETPLAN_RENDERED="$RENDER_DIR/01-router.yaml"
 NFT_RENDERED="$RENDER_DIR/nftables.conf"
 DNSMASQ_RENDERED="$RENDER_DIR/dnsmasq-router.conf"
+NFT_SVC_RENDERED="$RENDER_DIR/nftables-override.conf"
 WAN_LINK_RENDERED="$RENDER_DIR/10-homerouter-wan.link"
 LAN_LINK_RENDERED="$RENDER_DIR/11-homerouter-lan.link"
 WIFI_LINK_RENDERED="$RENDER_DIR/12-homerouter-wifi.link"
@@ -155,6 +156,7 @@ render_template "$CONF_DIR/hostapd/hostapd.conf.template"      "$HOSTAPD_RENDERE
 render_template "$CONF_DIR/netplan/01-router.yaml.template"    "$NETPLAN_RENDERED"
 render_template "$CONF_DIR/nftables/nftables.conf.template"    "$NFT_RENDERED"
 render_template "$CONF_DIR/dnsmasq/router.conf.template"       "$DNSMASQ_RENDERED"
+render_template "$CONF_DIR/systemd/nftables.service.d-homerouter.conf.template" "$NFT_SVC_RENDERED"
 render_template "$CONF_DIR/systemd/10-homerouter-wan.link.template"  "$WAN_LINK_RENDERED"
 render_template "$CONF_DIR/systemd/11-homerouter-lan.link.template"  "$LAN_LINK_RENDERED"
 render_template "$CONF_DIR/systemd/12-homerouter-wifi.link.template" "$WIFI_LINK_RENDERED"
@@ -225,6 +227,7 @@ CHANGED_HOSTAPD=0; CHANGED_DNSMASQ=0; CHANGED_RESOLVED=0
 if install_managed "$NETPLAN_RENDERED"                /etc/netplan/01-router.yaml  0600; then CHANGED_NET=1; fi
 if install_managed "$CONF_DIR/sysctl/99-router.conf"  /etc/sysctl.d/99-router.conf 0644; then CHANGED_SYSCTL=1; fi
 if install_managed "$NFT_RENDERED"                    /etc/nftables.conf           0755; then CHANGED_NFT=1; fi
+if install_managed "$NFT_SVC_RENDERED"                /etc/systemd/system/nftables.service.d/homerouter.conf 0644; then CHANGED_NFT=1; fi
 if install_managed "$HOSTAPD_RENDERED"                /etc/hostapd/hostapd.conf    0600; then CHANGED_HOSTAPD=1; fi
 if install_managed "$CONF_DIR/default/hostapd"        /etc/default/hostapd         0644; then CHANGED_HOSTAPD=1; fi
 if install_managed "$DNSMASQ_RENDERED"                /etc/dnsmasq.d/router.conf   0644; then CHANGED_DNSMASQ=1; fi
@@ -294,6 +297,10 @@ fi
 
 # nftables: persist across reboots, reload only when needed.
 systemctl enable nftables >/dev/null 2>&1 || true
+if [[ $CHANGED_NFT -eq 1 ]]; then
+    systemctl daemon-reload
+    ok "systemd daemon reloaded for nftables override"
+fi
 if [[ $CHANGED_NFT -eq 1 ]] || ! nft list table inet filter >/dev/null 2>&1; then
     nft --file /etc/nftables.conf
     ok "nftables ruleset loaded"
