@@ -12,7 +12,6 @@
 #   --dir <path>      install directory (default: /opt/homerouter)
 #   --run             run setup.sh afterwards (requires a filled-in .env)
 #   --no-packages     do not install the apt packages the router needs
-#   --no-verify       skip checksum verification (not recommended)
 #
 set -Eeuo pipefail
 
@@ -20,7 +19,6 @@ REPO="mklarsen/homerouter"
 INSTALL_DIR="/opt/homerouter"
 VERSION="latest"
 RUN_SETUP=0
-VERIFY=1
 PACKAGES_WANTED=1
 
 say()  { printf '==> %s\n' "$*"; }
@@ -33,8 +31,7 @@ while [[ $# -gt 0 ]]; do
         --dir)     INSTALL_DIR="${2:?--dir needs a path}"; shift 2 ;;
         --run)     RUN_SETUP=1; shift ;;
         --no-packages) PACKAGES_WANTED=0; shift ;;
-        --no-verify) VERIFY=0; shift ;;
-        -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)         die "unknown argument: $1" ;;
     esac
 done
@@ -51,6 +48,11 @@ if [[ $VERSION == "latest" ]]; then
     VERSION="$(curl -fsSL "$API/latest" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
     [[ -n $VERSION ]] || die "could not determine the latest release tag"
 fi
+
+# Validate version format (must be vX.Y.Z semantic versioning)
+if ! [[ $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    die "invalid version format (expected vX.Y.Z, got: $VERSION)"
+fi
 say "Version: $VERSION"
 
 BASE="https://github.com/$REPO/releases/download/$VERSION"
@@ -64,16 +66,12 @@ say "Downloading $TARBALL"
 curl -fsSL --proto '=https' --tlsv1.2 -o "$TMP_DIR/$TARBALL" "$BASE/$TARBALL" \
     || die "download failed -- does release $VERSION exist?"
 
-if [[ $VERIFY -eq 1 ]]; then
-    say "Verifying checksum"
-    curl -fsSL --proto '=https' --tlsv1.2 -o "$TMP_DIR/SHA256SUMS" "$BASE/SHA256SUMS" \
-        || die "could not download SHA256SUMS (use --no-verify to skip)"
-    ( cd "$TMP_DIR" && sha256sum --check --ignore-missing --status SHA256SUMS ) \
-        || die "checksum mismatch -- refusing to install"
-    say "Checksum OK"
-else
-    warn "checksum verification disabled"
-fi
+say "Verifying checksum"
+curl -fsSL --proto '=https' --tlsv1.2 -o "$TMP_DIR/SHA256SUMS" "$BASE/SHA256SUMS" \
+    || die "could not download SHA256SUMS"
+( cd "$TMP_DIR" && sha256sum --check --ignore-missing --status SHA256SUMS ) \
+    || die "checksum mismatch -- refusing to install"
+say "Checksum OK"
 
 say "Unpacking to $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
