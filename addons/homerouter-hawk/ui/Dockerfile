@@ -1,33 +1,19 @@
-# Multi-stage build for homerouter-hawk UI
+# Build homerouter-hawk-ui API server
 
-# Stage 1: Build React frontend
-FROM node:22-alpine AS frontend-builder
-
-WORKDIR /app/ui
-COPY ui/package.json ui/package-lock.json* ./
-RUN npm ci
-
-COPY ui/src ./src
-COPY ui/public ./public
-COPY ui/vite.config.js ./
-
-RUN npm run build
-
-# Stage 2: Build backend + combine
 FROM node:22-alpine
 
 WORKDIR /app
 
-# Install dependencies for backend
-COPY ui/package.json ui/package-lock.json* ./
-RUN npm ci --only=production && \
+# Install backend dependencies
+COPY addons/homerouter-hawk/ui/package.json ./
+RUN npm install --omit=dev && \
     npm install express express-basic-auth sqlite3
 
-# Copy built frontend
-COPY --from=frontend-builder /app/ui/dist ./dist
+# Copy pre-built frontend dist
+COPY addons/homerouter-hawk/ui/dist ./dist
 
-# Copy backend
-COPY ui/server ./server
+# Copy backend server
+COPY addons/homerouter-hawk/ui/server ./server
 
 # Create data directory
 RUN mkdir -p /data && chown -R node:node /data

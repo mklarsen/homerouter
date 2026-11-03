@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import html2pdf from 'html2pdf.js';
-import './styles/Dashboard.css';
+import '../styles/Dashboard.css';
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
