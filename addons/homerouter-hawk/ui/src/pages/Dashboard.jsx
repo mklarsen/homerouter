@@ -90,7 +90,11 @@ export default function Dashboard() {
                 <span className="status-badge active">Active</span>
               </div>
               <div className="metric-value">{latest.ipv4}</div>
+<<<<<<< HEAD
               <div className="metric-footer">Updated {formatDateTime(latest.timestamp)}</div>
+=======
+              <div className="metric-footer">Updated {new Date(latest.timestamp).toLocaleString('da-DK')}</div>
+>>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
             </div>
 
             <div className="metric-card">
@@ -203,7 +207,11 @@ export default function Dashboard() {
               <tbody>
                 {data.slice().reverse().slice(0, 100).map((row) => (
                   <tr key={row.id} className={row.change ? 'row-changed' : ''}>
+<<<<<<< HEAD
                     <td className="col-timestamp">{formatDateTime(row.timestamp)}</td>
+=======
+                    <td className="col-timestamp">{new Date(row.timestamp).toLocaleString('da-DK')}</td>
+>>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
                     <td className="col-ip"><code>{row.ipv4}</code></td>
                     <td className="col-ip">
                       {row.ipv6 && row.ipv6.includes(':') ? (
