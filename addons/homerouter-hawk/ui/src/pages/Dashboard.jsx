@@ -11,6 +11,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+  };
+
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 300000); // Refresh every 5 min
@@ -78,7 +90,11 @@ export default function Dashboard() {
                 <span className="status-badge active">Active</span>
               </div>
               <div className="metric-value">{latest.ipv4}</div>
+<<<<<<< HEAD
+              <div className="metric-footer">Updated {formatDateTime(latest.timestamp)}</div>
+=======
               <div className="metric-footer">Updated {new Date(latest.timestamp).toLocaleString('da-DK')}</div>
+>>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
             </div>
 
             <div className="metric-card">
@@ -191,7 +207,11 @@ export default function Dashboard() {
               <tbody>
                 {data.slice().reverse().slice(0, 100).map((row) => (
                   <tr key={row.id} className={row.change ? 'row-changed' : ''}>
+<<<<<<< HEAD
+                    <td className="col-timestamp">{formatDateTime(row.timestamp)}</td>
+=======
                     <td className="col-timestamp">{new Date(row.timestamp).toLocaleString('da-DK')}</td>
+>>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
                     <td className="col-ip"><code>{row.ipv4}</code></td>
                     <td className="col-ip">
                       {row.ipv6 && row.ipv6.includes(':') ? (
