@@ -14,13 +14,13 @@ export default function Dashboard() {
   const formatDateTime = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
 
   useEffect(() => {
@@ -90,11 +90,7 @@ export default function Dashboard() {
                 <span className="status-badge active">Active</span>
               </div>
               <div className="metric-value">{latest.ipv4}</div>
-<<<<<<< HEAD
               <div className="metric-footer">Updated {formatDateTime(latest.timestamp)}</div>
-=======
-              <div className="metric-footer">Updated {new Date(latest.timestamp).toLocaleString('da-DK')}</div>
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
             </div>
 
             <div className="metric-card">
@@ -207,11 +203,7 @@ export default function Dashboard() {
               <tbody>
                 {data.slice().reverse().slice(0, 100).map((row) => (
                   <tr key={row.id} className={row.change ? 'row-changed' : ''}>
-<<<<<<< HEAD
                     <td className="col-timestamp">{formatDateTime(row.timestamp)}</td>
-=======
-                    <td className="col-timestamp">{new Date(row.timestamp).toLocaleString('da-DK')}</td>
->>>>>>> d18ab694d99c45528ffb0a3a99714ce1c6289d07
                     <td className="col-ip"><code>{row.ipv4}</code></td>
                     <td className="col-ip">
                       {row.ipv6 && row.ipv6.includes(':') ? (
@@ -237,7 +229,7 @@ export default function Dashboard() {
 
       <footer className="page-footer">
         <p>homerouter-hawk • Public IP Tracking Service</p>
-        <p className="footer-meta">Last updated: {new Date().toLocaleString('da-DK')}</p>
+        <p className="footer-meta">Last updated: {formatDateTime(new Date().toISOString())}</p>
       </footer>
     </div>
   );
