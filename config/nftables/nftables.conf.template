@@ -59,6 +59,7 @@ table inet filter {
             destination-unreachable, time-exceeded, parameter-problem
         } accept
         icmp type echo-request limit rate 20/second accept
+        icmp type echo-reply accept comment "ICMP echo reply (for LAN clients)"
 
         # --- Anti-spoofing on the WAN side ---
         iifname $WAN ip saddr @bogons4 counter drop comment "bogon source"
@@ -97,6 +98,13 @@ ${SRV_CMT}        iifname $SRV icmp type echo-request accept
         # LAN -> internet (IPv4 NATed, IPv6 routed).
         iifname $LAN oifname $WAN accept comment "LAN -> WAN"
         iifname $LAN oifname $LAN accept comment "intra-LAN routing"
+
+        # Return traffic: WAN -> LAN. This handles SNAT return path where
+        # connection tracking may not capture the full flow before NAT rewrites occur.
+        # Only accept if it's a response (ACK/established) or ICMP.
+        iifname $WAN oifname $LAN ip protocol tcp tcp flags ack accept comment "WAN -> LAN (TCP ACK/established)"
+        iifname $WAN oifname $LAN ip protocol udp accept comment "WAN -> LAN (UDP)"
+        iifname $WAN oifname $LAN ip protocol icmp accept comment "WAN -> LAN (ICMP)"
 
         # --- Server / DMZ segment ---
         # Outbound is allowed, LAN may reach it, but it may not open
