@@ -15,7 +15,8 @@ import (
 // Overridden at build time with -ldflags "-X main.version=...".
 var version = "dev"
 
-func newHandler(cfg Config) http.Handler {
+// newHandler serves the peer API only when svc is set.
+func newHandler(cfg Config, svc *Service, backend Backend) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -24,6 +25,9 @@ func newHandler(cfg Config) http.Handler {
 	mux.HandleFunc("GET /api/v1/brand", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, cfg.Brand)
 	})
+	if svc != nil {
+		(&api{cfg: cfg, svc: svc, backend: backend}).register(mux)
+	}
 
 	return securityHeaders(mux)
 }
@@ -51,17 +55,36 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var svc *Service
+	var backend Backend
+	if cfg.APIToken != "" {
+		if cfg.Backend == "wg" {
+			backend = newWGBackend(cfg.Iface, cfg.Port, cfg.Pool.ServerAddr(), cfg.DataDir)
+		} else {
+			backend = newFakeBackend()
+		}
+		if err := backend.Ensure(ctx); err != nil {
+			log.Fatalf("backend: %v", err)
+		}
+		svc = NewService(cfg.DataDir, cfg.Pool, backend)
+		if err := svc.Restore(ctx); err != nil {
+			log.Fatalf("restore peers: %v", err)
+		}
+	} else {
+		log.Print("VPN_API_TOKEN not set: peer API disabled")
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           newHandler(cfg),
+		Handler:           newHandler(cfg, svc, backend),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		<-ctx.Done()

@@ -1,0 +1,15 @@
+meta {
+  name: Delete Peer
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/peers/{{peerId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiToken}}
+}
