@@ -1,0 +1,24 @@
+# Add this service to /opt/stacks/docker-compose.yml.
+# Phase 1 skeleton: no WireGuard control yet. Later phases switch this to
+# network_mode: host with cap_add: [NET_ADMIN] to manage the wg interface.
+
+  homerouter-vpn:
+    container_name: homerouter-vpn
+    image: ghcr.io/mklarsen/homerouter-vpn:latest
+    build:
+      context: ./addons/homerouter-vpn
+    restart: unless-stopped
+    environment:
+      VPN_LISTEN: ":8081"
+      VPN_BRAND_NAME: ${VPN_BRAND_NAME:-VPN}
+      VPN_BRAND_COLOR: ${VPN_BRAND_COLOR:-#2563eb}
+      VPN_BRAND_LOGO_URL: ${VPN_BRAND_LOGO_URL:-}
+    ports:
+      - "10.10.10.1:8081:8081"
+    volumes:
+      - ./homerouter-vpn-data:/data
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
