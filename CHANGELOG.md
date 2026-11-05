@@ -17,6 +17,7 @@ as the release notes. Merges without a new version heading do not release.
 - `addons/homerouter-vpn` skeleton: re-brandable VPN service container with health and brand endpoints, plus an optional WireGuard firewall section (`VPN_ENABLE`, off by default; peers cannot reach the LAN unless `VPN_TO_LAN=1`).
 - `homerouter-vpn` peer API: Bearer-token protected peer create/list/delete with an address pool, persisted peer list, `wg` and in-memory backends, OpenAPI spec and Bruno collection.
 - `homerouter-vpn` Authentik SSO: OIDC sign-in (authorization code with PKCE), group gating, self-service peers per user with limits and optional expiry, and a reconciler that revokes peers when an account is disabled or leaves the group.
+- `homerouter-vpn` portal: embedded brandable web page to sign in, add and remove devices, with one-time `.conf` download and QR code (strict CSP, no inline code).
 ### Fixed
 
 - Fix nftables.service failing to start on boot when Docker is active. Docker and nftables both manage firewall rules via iptables-nft. The nftables systemd service now starts *after* Docker with a retry policy, ensuring Docker's rules are re-applied after the `flush ruleset` command.

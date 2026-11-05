@@ -4,18 +4,18 @@ WireGuard access for the router with Authentik (OIDC) sign-in for peer
 enrolment. This is a proof of concept designed to be re-brandable for other
 platforms.
 
-Status: **phase 3**. Users sign in with Authentik, create their own peers and
-lose them automatically when their account is disabled or leaves the group.
-A token-protected admin API is also available (see `openapi.yaml` and the
-`bruno/` collection). The `fake` backend runs anywhere; the `wg` backend needs
-a Linux host.
+Status: **phase 4**. Users open the portal at `/`, sign in with Authentik,
+add devices (download `.conf` or scan a QR code) and lose them automatically
+when their account is disabled or leaves the group. A token-protected admin API
+is also available (see `openapi.yaml` and the `bruno/` collection). The `fake`
+backend runs anywhere; the `wg` backend needs a Linux host.
 
 ## Roadmap
 
 1. Skeleton, container, optional firewall section (done).
 2. `wg` interface and peer lifecycle with a fake backend for local tests (done).
-3. Authentik OIDC sign-in, group gating and automatic peer revocation (this phase).
-4. Enrolment UI with `.conf` and QR download.
+3. Authentik OIDC sign-in, group gating and automatic peer revocation (done).
+4. Enrolment UI with `.conf` and QR download (this phase).
 5. Image publishing and Authentik setup guide.
 
 ## Configuration
@@ -60,8 +60,22 @@ are never stored. Clients may instead send their own `publicKey`.
 
 Flow: `GET /auth/login` redirects to Authentik; the callback verifies the ID
 token (signature, audience, expiry, nonce) and the group, then sets an
-HttpOnly session cookie. `GET /api/v1/me`, and `GET`/`POST /api/v1/me/peers`
+HttpOnly session cookie and returns to the portal at `/`.
+`GET /api/v1/me`, and `GET`/`POST /api/v1/me/peers`
 and `DELETE /api/v1/me/peers/{id}` act on the signed-in user's own peers only.
+
+## Portal
+
+`/` serves a small page (plain HTML, CSS and JS embedded in the binary, no
+build step). It shows the user's devices, creates a device and displays its
+configuration once with a QR code for the WireGuard mobile app and a `.conf`
+download, and removes devices. The private key is dropped from the page when the
+user clicks "Done". The page uses a strict Content-Security-Policy and never
+builds markup from strings.
+
+Branding comes from `VPN_BRAND_NAME`, `VPN_BRAND_COLOR` and
+`VPN_BRAND_LOGO_URL`. Open the portal on the same origin as
+`VPN_OIDC_REDIRECT_URL`; other origins are refused for changes.
 
 Revocation: every `VPN_RECONCILE_INTERVAL` the service refreshes each owner's
 refresh token. A rejected refresh (account disabled) or an ID token without the

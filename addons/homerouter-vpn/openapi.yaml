@@ -292,3 +292,6 @@ components:
         config:
           type: string
           description: Client configuration file
+        qrSvg:
+          type: string
+          description: SVG QR code of the config, for the WireGuard mobile app

@@ -62,6 +62,8 @@ type createPeerResponse struct {
 	// Config is a ready-to-use client file. It contains the private key only
 	// when the server generated the key pair; that key is not stored.
 	Config string `json:"config"`
+	// QRSVG encodes Config for scanning with a phone; same secrecy as Config.
+	QRSVG string `json:"qrSvg,omitempty"`
 }
 
 func (a *api) createPeer(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +84,12 @@ func (a *api) create(w http.ResponseWriter, r *http.Request, opt CreateOptions) 
 		a.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, createPeerResponse{Peer: peer, Config: a.clientConfig(peer, priv)})
+	cfgText := a.clientConfig(peer, priv)
+	qrSVG, err := qrSVG(cfgText)
+	if err != nil {
+		log.Printf("qr: %v", err) // the text config is still usable
+	}
+	writeJSON(w, http.StatusCreated, createPeerResponse{Peer: peer, Config: cfgText, QRSVG: qrSVG})
 }
 
 func (a *api) deletePeer(w http.ResponseWriter, r *http.Request) {
