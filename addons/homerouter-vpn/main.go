@@ -15,8 +15,9 @@ import (
 // Overridden at build time with -ldflags "-X main.version=...".
 var version = "dev"
 
-// newHandler serves the peer API only when svc is set.
-func newHandler(cfg Config, svc *Service, backend Backend) http.Handler {
+// newHandler serves the peer API only when svc is set, and the sign-in and
+// self-service routes only when auth is set.
+func newHandler(cfg Config, svc *Service, backend Backend, auth *Authenticator) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -25,8 +26,11 @@ func newHandler(cfg Config, svc *Service, backend Backend) http.Handler {
 	mux.HandleFunc("GET /api/v1/brand", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, cfg.Brand)
 	})
-	if svc != nil {
+	if svc != nil && cfg.APIToken != "" {
 		(&api{cfg: cfg, svc: svc, backend: backend}).register(mux)
+	}
+	if auth != nil {
+		auth.register(mux)
 	}
 
 	return securityHeaders(mux)
@@ -60,7 +64,8 @@ func main() {
 
 	var svc *Service
 	var backend Backend
-	if cfg.APIToken != "" {
+	var auth *Authenticator
+	if cfg.APIToken != "" || cfg.OIDC != nil {
 		if cfg.Backend == "wg" {
 			backend = newWGBackend(cfg.Iface, cfg.Port, cfg.Pool.ServerAddr(), cfg.DataDir)
 		} else {
@@ -73,13 +78,27 @@ func main() {
 		if err := svc.Restore(ctx); err != nil {
 			log.Fatalf("restore peers: %v", err)
 		}
+	}
+	if cfg.APIToken == "" {
+		log.Print("VPN_API_TOKEN not set: admin peer API disabled")
+	}
+	if cfg.OIDC != nil {
+		owners, err := NewOwnerStore(cfg.DataDir)
+		if err != nil {
+			log.Fatalf("owners: %v", err)
+		}
+		auth, err = NewAuthenticator(ctx, *cfg.OIDC, &api{cfg: cfg, svc: svc, backend: backend}, owners)
+		if err != nil {
+			log.Fatalf("oidc: %v", err)
+		}
+		go auth.RunReconciler(ctx)
 	} else {
-		log.Print("VPN_API_TOKEN not set: peer API disabled")
+		log.Print("VPN_OIDC_ISSUER not set: SSO sign-in disabled")
 	}
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           newHandler(cfg, svc, backend),
+		Handler:           newHandler(cfg, svc, backend, auth),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

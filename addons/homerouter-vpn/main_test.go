@@ -54,7 +54,7 @@ func TestLoadConfigAcceptsBrand(t *testing.T) {
 
 func TestHandlers(t *testing.T) {
 	cfg, _ := LoadConfig(env(map[string]string{"VPN_BRAND_NAME": "Example"}))
-	h := newHandler(cfg, nil, nil)
+	h := newHandler(cfg, nil, nil, nil)
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
