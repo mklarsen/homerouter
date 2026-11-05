@@ -32,6 +32,7 @@ func newHandler(cfg Config, svc *Service, backend Backend, auth *Authenticator) 
 	if auth != nil {
 		auth.register(mux)
 	}
+	registerUI(mux)
 
 	return securityHeaders(mux)
 }
@@ -43,6 +44,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Cache-Control", "no-store")
+		// Only same-origin scripts and styles; logos may come from https and QR codes from data: URLs.
+		h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; "+
+			"img-src 'self' data: https:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 		next.ServeHTTP(w, r)
 	})
 }

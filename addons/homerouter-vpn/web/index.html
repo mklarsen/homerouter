@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VPN</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <header>
+    <img id="brand-logo" alt="" hidden>
+    <h1 id="brand-name">VPN</h1>
+    <button id="signout" type="button" class="link" hidden>Sign out</button>
+  </header>
+
+  <main>
+    <section id="view-loading"><p>Loading…</p></section>
+
+    <section id="view-signin" hidden>
+      <h2>Sign in</h2>
+      <p>Use your company account to get VPN access on your devices.</p>
+      <p><a class="button" href="/auth/login">Sign in with SSO</a></p>
+    </section>
+
+    <section id="view-unavailable" hidden>
+      <h2>Sign-in is not configured</h2>
+      <p>Ask an administrator to enable single sign-on for this service.</p>
+    </section>
+
+    <section id="view-app" hidden>
+      <p>Signed in as <strong id="user-name"></strong>.</p>
+
+      <h2>Your devices</h2>
+      <p id="empty" hidden>No devices yet.</p>
+      <div class="scroll">
+        <table id="peers" hidden>
+          <thead><tr><th>Name</th><th>Address</th><th>Created</th><th>Expires</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2>Add a device</h2>
+      <form id="create">
+        <label for="device-name">Device name</label>
+        <input id="device-name" name="name" maxlength="64" required autocomplete="off" placeholder="My laptop">
+        <button type="submit" class="button">Create</button>
+      </form>
+      <p id="error" role="alert" hidden></p>
+
+      <div id="result" hidden>
+        <h2>Connect your device</h2>
+        <p class="warn">This configuration contains a private key and is shown only once. Save it now.</p>
+        <img id="qr" alt="QR code for the WireGuard app" width="240" height="240">
+        <pre id="config"></pre>
+        <p>
+          <button id="download" type="button" class="button">Download .conf</button>
+          <button id="done" type="button" class="link">Done, hide this</button>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>

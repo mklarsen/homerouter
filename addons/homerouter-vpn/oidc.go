@@ -283,7 +283,7 @@ func (a *Authenticator) callback(w http.ResponseWriter, r *http.Request) {
 	a.sessions[sid] = session{user: user{Sub: idt.Subject, Name: name}, expires: a.now().Add(sessionTTL)}
 	a.mu.Unlock()
 	http.SetCookie(w, a.cookie(sessionCookie, sid, "/", int(sessionTTL.Seconds())))
-	http.Redirect(w, r, "/api/v1/me", http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (a *Authenticator) current(r *http.Request) (user, string, bool) {
