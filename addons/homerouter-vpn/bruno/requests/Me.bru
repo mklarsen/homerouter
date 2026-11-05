@@ -1,0 +1,15 @@
+meta {
+  name: Me
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me
+  body: none
+  auth: none
+}
+
+docs {
+  Needs the vpn_session cookie. Sign in once by opening {{baseUrl}}/auth/login in a browser and copy the cookie into Bruno's cookie jar.
+}

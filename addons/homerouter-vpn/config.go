@@ -34,6 +34,9 @@ type Config struct {
 	DNS        string
 	AllowedIPs []string
 	DataDir    string
+
+	// OIDC is nil unless VPN_OIDC_ISSUER is set.
+	OIDC *OIDCConfig
 }
 
 var (
@@ -76,6 +79,9 @@ func LoadConfig(lookup func(string) string) (Config, error) {
 	}
 
 	if err := loadVPN(lookup, &cfg); err != nil {
+		return Config{}, err
+	}
+	if err := loadOIDC(lookup, &cfg); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil

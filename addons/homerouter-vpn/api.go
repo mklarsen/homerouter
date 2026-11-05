@@ -65,6 +65,10 @@ type createPeerResponse struct {
 }
 
 func (a *api) createPeer(w http.ResponseWriter, r *http.Request) {
+	a.create(w, r, CreateOptions{})
+}
+
+func (a *api) create(w http.ResponseWriter, r *http.Request, opt CreateOptions) {
 	var req createPeerRequest
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
 	dec.DisallowUnknownFields()
@@ -73,7 +77,7 @@ func (a *api) createPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peer, priv, err := a.svc.Create(r.Context(), req.Name, req.PublicKey)
+	peer, priv, err := a.svc.Create(r.Context(), req.Name, req.PublicKey, opt)
 	if err != nil {
 		a.fail(w, err)
 		return

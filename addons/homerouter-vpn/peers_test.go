@@ -32,7 +32,7 @@ func newTestServer(t *testing.T, dir string) (http.Handler, *fakeBackend) {
 		t.Fatal(err)
 	}
 	svc := NewService(dir, cfg.Pool, fb)
-	return newHandler(cfg, svc, fb), fb
+	return newHandler(cfg, svc, fb, nil), fb
 }
 
 func call(h http.Handler, method, path, token, body string) *httptest.ResponseRecorder {
@@ -59,7 +59,7 @@ func TestAPIRequiresToken(t *testing.T) {
 
 func TestAPIDisabledWithoutToken(t *testing.T) {
 	cfg, _ := LoadConfig(env(nil))
-	h := newHandler(cfg, nil, nil)
+	h := newHandler(cfg, nil, nil, nil)
 	if rec := call(h, "GET", "/api/v1/peers", "anything", ""); rec.Code != http.StatusNotFound {
 		t.Fatalf("got %d", rec.Code)
 	}

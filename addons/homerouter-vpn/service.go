@@ -23,11 +23,22 @@ var (
 )
 
 type Peer struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	PublicKey string    `json:"publicKey"`
-	Address   string    `json:"address"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	PublicKey string     `json:"publicKey"`
+	Address   string     `json:"address"`
+	CreatedAt time.Time  `json:"createdAt"`
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	// Owner is the OIDC subject for self-service peers; admin-created peers have none.
+	Owner     string `json:"owner,omitempty"`
+	OwnerName string `json:"ownerName,omitempty"`
+}
+
+// CreateOptions carries what differs between admin and self-service creation.
+type CreateOptions struct {
+	Owner, OwnerName string
+	TTL              time.Duration // 0 = never expires
+	MaxPerOwner      int           // 0 = unlimited
 }
 
 // Service owns the peer list: it allocates addresses, applies changes to the
@@ -76,20 +87,37 @@ func (s *Service) save() error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
+	return writeFileAtomic(s.path, b)
+}
+
+// writeFileAtomic replaces path via a temp file; the result is readable by the owner only.
+func writeFileAtomic(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.path)
+	return os.Rename(tmp, path)
 }
 
 func (s *Service) List() []Peer {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]Peer{}, s.peers...)
+}
+
+func (s *Service) ListOwned(owner string) []Peer {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []Peer{}
+	for _, p := range s.peers {
+		if p.Owner == owner {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func validName(n string) bool {
@@ -106,7 +134,7 @@ func validName(n string) bool {
 
 // Create adds a peer. When publicKey is empty a key pair is generated and the
 // private key is returned once; it is never stored.
-func (s *Service) Create(ctx context.Context, name, publicKey string) (Peer, string, error) {
+func (s *Service) Create(ctx context.Context, name, publicKey string, opt CreateOptions) (Peer, string, error) {
 	name = strings.TrimSpace(name)
 	if !validName(name) {
 		return Peer{}, "", fmt.Errorf("%w: name must be 1-64 characters without control characters", ErrInvalid)
@@ -126,13 +154,20 @@ func (s *Service) Create(ctx context.Context, name, publicKey string) (Peer, str
 	defer s.mu.Unlock()
 
 	used := map[netip.Addr]bool{}
+	owned := 0
 	for _, p := range s.peers {
 		if p.PublicKey == publicKey {
 			return Peer{}, "", fmt.Errorf("%w: public key already registered", ErrConflict)
 		}
+		if opt.Owner != "" && p.Owner == opt.Owner {
+			owned++
+		}
 		if a, err := netip.ParseAddr(p.Address); err == nil {
 			used[a] = true
 		}
+	}
+	if opt.MaxPerOwner > 0 && owned >= opt.MaxPerOwner {
+		return Peer{}, "", fmt.Errorf("%w: peer limit of %d reached", ErrConflict, opt.MaxPerOwner)
 	}
 	addr, err := s.pool.Allocate(used)
 	if err != nil {
@@ -143,9 +178,15 @@ func (s *Service) Create(ctx context.Context, name, publicKey string) (Peer, str
 	if _, err := rand.Read(id); err != nil {
 		return Peer{}, "", err
 	}
+	now := time.Now().UTC().Truncate(time.Second)
 	peer := Peer{
 		ID: hex.EncodeToString(id), Name: name, PublicKey: publicKey,
-		Address: addr.String(), CreatedAt: time.Now().UTC().Truncate(time.Second),
+		Address: addr.String(), CreatedAt: now,
+		Owner: opt.Owner, OwnerName: opt.OwnerName,
+	}
+	if opt.TTL > 0 {
+		exp := now.Add(opt.TTL)
+		peer.ExpiresAt = &exp
 	}
 
 	if err := s.backend.AddPeer(ctx, publicKey, addr); err != nil {
@@ -161,24 +202,67 @@ func (s *Service) Create(ctx context.Context, name, publicKey string) (Peer, str
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
+	return s.deleteOne(ctx, func(p Peer) bool { return p.ID == id })
+}
+
+// DeleteOwned removes a peer only if it belongs to owner.
+func (s *Service) DeleteOwned(ctx context.Context, id, owner string) error {
+	return s.deleteOne(ctx, func(p Peer) bool { return p.ID == id && p.Owner == owner })
+}
+
+func (s *Service) deleteOne(ctx context.Context, match func(Peer) bool) error {
+	n, err := s.removeWhere(ctx, match)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RemoveOwner revokes every peer of an owner.
+func (s *Service) RemoveOwner(ctx context.Context, owner string) (int, error) {
+	return s.removeWhere(ctx, func(p Peer) bool { return p.Owner == owner })
+}
+
+// RemoveExpired revokes peers whose expiry has passed.
+func (s *Service) RemoveExpired(ctx context.Context, now time.Time) (int, error) {
+	return s.removeWhere(ctx, func(p Peer) bool { return p.ExpiresAt != nil && !p.ExpiresAt.After(now) })
+}
+
+// removeWhere removes matching peers from the backend and the store. Peers
+// the backend fails to remove are kept so the next run retries them.
+func (s *Service) removeWhere(ctx context.Context, match func(Peer) bool) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, p := range s.peers {
-		if p.ID != id {
+	var kept []Peer
+	var firstErr error
+	removed := 0
+	for _, p := range s.peers {
+		if !match(p) {
+			kept = append(kept, p)
 			continue
 		}
 		if err := s.backend.RemovePeer(ctx, p.PublicKey); err != nil {
-			return err
+			if firstErr == nil {
+				firstErr = err
+			}
+			kept = append(kept, p)
+			continue
 		}
-		next := append(append([]Peer{}, s.peers[:i]...), s.peers[i+1:]...)
-		prev := s.peers
-		s.peers = next
-		if err := s.save(); err != nil {
-			s.peers = prev
-			return err
-		}
-		return nil
+		removed++
 	}
-	return ErrNotFound
+	if removed == 0 {
+		return 0, firstErr
+	}
+
+	prev := s.peers
+	s.peers = kept
+	if err := s.save(); err != nil {
+		s.peers = prev
+		return 0, err
+	}
+	return removed, firstErr
 }

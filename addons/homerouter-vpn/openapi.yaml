@@ -6,7 +6,9 @@ info:
     Peer management for the WireGuard access service. All /api/v1/peers and
     /api/v1/server routes require the static Bearer token configured in
     VPN_API_TOKEN (at least 32 characters). When the token is unset the routes
-    are not served. Authentik OIDC is planned and will replace the static token.
+    are not served. Self-service routes under /auth and /api/v1/me use an
+    HttpOnly session cookie from Authentik (OIDC) sign-in and exist only when
+    VPN_OIDC_ISSUER is set.
 servers:
   - url: http://10.10.10.1:8081
 security:
@@ -97,8 +99,138 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+  /auth/login:
+    get:
+      summary: Start SSO sign-in
+      description: Redirects to the identity provider (authorization code with PKCE). Only available when VPN_OIDC_ISSUER is set.
+      security: []
+      responses:
+        "302": { description: Redirect to the identity provider }
+  /auth/callback:
+    get:
+      summary: Finish SSO sign-in
+      description: >
+        Verifies state, ID token and group membership, sets the HttpOnly session
+        cookie and redirects to /api/v1/me.
+      security: []
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+      responses:
+        "303": { description: Signed in }
+        "400": { $ref: "#/components/responses/Error" }
+        "401":
+          description: Sign-in failed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Account is not in the required group
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /auth/logout:
+    post:
+      summary: End the session
+      security:
+        - cookieAuth: []
+      responses:
+        "204": { description: Signed out }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/me:
+    get:
+      summary: Signed-in user and their peers
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject: { type: string }
+                  name: { type: string }
+                  maxPeers: { type: integer }
+                  peers:
+                    type: array
+                    items: { $ref: "#/components/schemas/Peer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/me/peers:
+    get:
+      summary: List the signed-in user's peers
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Own peers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Peer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      summary: Create a peer for the signed-in user
+      description: >
+        Same body and response as the admin create. The peer is owned by the
+        user, limited by VPN_MAX_PEERS_PER_USER and expires after VPN_PEER_TTL.
+        State-changing requests must come from the configured origin.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePeerRequest" }
+      responses:
+        "201":
+          description: Peer created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatePeerResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Cross-origin request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: Duplicate key, peer limit reached or pool exhausted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/me/peers/{id}:
+    delete:
+      summary: Delete one of the signed-in user's peers
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Peer removed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Cross-origin request refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Unknown peer, or not owned by the user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 components:
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: vpn_session
     bearerAuth:
       type: http
       scheme: bearer
@@ -141,6 +273,9 @@ components:
         publicKey: { type: string }
         address: { type: string, example: 10.10.30.2 }
         createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        owner: { type: string, description: OIDC subject; absent for admin-created peers }
+        ownerName: { type: string }
     CreatePeerRequest:
       type: object
       additionalProperties: false
