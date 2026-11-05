@@ -106,6 +106,7 @@ TEMPLATE_VARS=(
     SRV_IF SRV_BRIDGE_IF SRV_CMT SRV_LAN_CMT
     SRV_IP4 SRV_NET4 SRV_PREFIXLEN4 SRV_NETMASK4 SRV_DHCP4_START SRV_DHCP4_END
     SRV_IP6 SRV_IP6_PREFIXLEN SRV_DOMAIN
+    VPN_IF VPN_NET4 VPN_PORT VPN_CMT VPN_LAN_CMT
     DOCKER_CMT
     DOCKER_HOST_INPUT_CMT DOCKER_HOST_INPUT_NET4 DOCKER_HOST_INPUT_TCP_PORT
     DNS4_1 DNS4_2 DNS6_1
@@ -176,6 +177,15 @@ load_env() {
     : "${SRV_DOMAIN:=srv}"
     : "${SRV_TO_LAN:=0}"
 
+    : "${VPN_ENABLE:=0}"
+    if [[ -n ${VPN_ENABLE_OVERRIDE:-} ]]; then
+        VPN_ENABLE="$VPN_ENABLE_OVERRIDE"
+    fi
+    : "${VPN_IF:=wg0}"
+    : "${VPN_NET4:=10.10.30.0/24}"
+    : "${VPN_PORT:=51820}"
+    : "${VPN_TO_LAN:=0}"
+
     : "${DOCKER_COMPAT:=0}"
     if [[ -n ${DOCKER_COMPAT_OVERRIDE:-} ]]; then
         DOCKER_COMPAT="$DOCKER_COMPAT_OVERRIDE"
@@ -244,6 +254,18 @@ load_env() {
     else
         SRV_LAN_CMT="# "
     fi
+    # shellcheck disable=SC2034  # exported through TEMPLATE_VARS
+    if [[ $VPN_ENABLE == "1" ]]; then
+        VPN_CMT=""
+    else
+        VPN_CMT="# "
+    fi
+    # shellcheck disable=SC2034
+    if [[ $VPN_ENABLE == "1" && $VPN_TO_LAN == "1" ]]; then
+        VPN_LAN_CMT=""
+    else
+        VPN_LAN_CMT="# "
+    fi
     # shellcheck disable=SC2034
     if [[ $DOCKER_COMPAT == "1" ]]; then
         DOCKER_CMT=""
@@ -257,7 +279,7 @@ load_env() {
         DOCKER_HOST_INPUT_CMT="# "
     fi
 
-    export SRV_ENABLE SRV_TO_LAN DOCKER_COMPAT DOCKER_HOST_INPUT_ENABLE
+    export SRV_ENABLE SRV_TO_LAN VPN_ENABLE VPN_TO_LAN DOCKER_COMPAT DOCKER_HOST_INPUT_ENABLE
 
     export UNUSED_IFS WIFI_WPA3_ONLY ENV_LOADED
     export "${TEMPLATE_VARS[@]}"

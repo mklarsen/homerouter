@@ -33,7 +33,7 @@ run_pass() {
 
     # Optional blocks share the mode switch, so both rendered variants are
     # validated without changing the host.
-    SRV_ENABLE_OVERRIDE="$mode" DOCKER_COMPAT_OVERRIDE="$mode" \
+    SRV_ENABLE_OVERRIDE="$mode" VPN_ENABLE_OVERRIDE="$mode" DOCKER_COMPAT_OVERRIDE="$mode" \
         DOCKER_HOST_INPUT_ENABLE_OVERRIDE="$mode" \
         DOCKER_HOST_INPUT_TCP_PORT_OVERRIDE="5005" load_env "$ENV_SOURCE"
     docker_host_rule="iifname \"br-*\" ip saddr $DOCKER_HOST_INPUT_NET4 ip daddr $LAN_IP4 tcp dport $DOCKER_HOST_INPUT_TCP_PORT accept"
@@ -67,6 +67,16 @@ run_pass() {
         check "Docker-to-host rule remains commented by default" grep -Fq \
             "#         $docker_host_rule" \
             "$out/nftables.conf"
+    fi
+
+    if [[ $mode == "1" ]]; then
+        check "WireGuard port open on the WAN" grep -Fq \
+            "iifname \$WAN udp dport $VPN_PORT limit rate 30/second accept" "$out/nftables.conf"
+        check "VPN peers isolated from the LAN" bash -c \
+            "! grep -qE '^ +iifname \\\$WG oifname \\\$LAN accept' '$out/nftables.conf'"
+    else
+        check "WireGuard port stays closed by default" bash -c \
+            "! grep -qE '^ +iifname \\\$WAN udp dport $VPN_PORT' '$out/nftables.conf'"
     fi
 
     if command -v dnsmasq >/dev/null 2>&1; then
