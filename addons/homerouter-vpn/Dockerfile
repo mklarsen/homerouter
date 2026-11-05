@@ -9,7 +9,8 @@ RUN CGO_ENABLED=0 go vet ./... && CGO_ENABLED=0 go test ./... && \
 
 FROM alpine:3.23
 
-RUN addgroup -S -g 10002 vpn && \
+RUN apk add --no-cache wireguard-tools iproute2 && \
+    addgroup -S -g 10002 vpn && \
     adduser -S -D -H -u 10002 -G vpn vpn && \
     mkdir -p /data && chown vpn:vpn /data
 

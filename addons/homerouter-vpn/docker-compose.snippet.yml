@@ -1,6 +1,7 @@
 # Add this service to /opt/stacks/docker-compose.yml.
-# Phase 1 skeleton: no WireGuard control yet. Later phases switch this to
-# network_mode: host with cap_add: [NET_ADMIN] to manage the wg interface.
+# It needs the host network namespace and NET_ADMIN to own the wg interface,
+# so it runs as root with every other capability dropped. Remove
+# VPN_BACKEND (or set it to fake) to run without touching the host.
 
   homerouter-vpn:
     container_name: homerouter-vpn
@@ -8,13 +9,26 @@
     build:
       context: ./addons/homerouter-vpn
     restart: unless-stopped
+    network_mode: host
+    user: "0:0"
     environment:
-      VPN_LISTEN: ":8081"
+      VPN_LISTEN: "10.10.10.1:8081"
+      VPN_BACKEND: wg
+      VPN_IF: ${VPN_IF:-wg0}
+      VPN_NET4: ${VPN_NET4:-10.10.30.0/24}
+      VPN_PORT: ${VPN_PORT:-51820}
+      VPN_ENDPOINT: ${VPN_ENDPOINT:?set VPN_ENDPOINT to host:port}
+      VPN_DNS: ${VPN_DNS:-10.10.10.1}
+      VPN_ALLOWED_IPS: ${VPN_ALLOWED_IPS:-10.10.10.0/24,10.10.30.0/24}
+      VPN_API_TOKEN: ${VPN_API_TOKEN:?set a token of at least 32 characters}
       VPN_BRAND_NAME: ${VPN_BRAND_NAME:-VPN}
       VPN_BRAND_COLOR: ${VPN_BRAND_COLOR:-#2563eb}
       VPN_BRAND_LOGO_URL: ${VPN_BRAND_LOGO_URL:-}
-    ports:
-      - "10.10.10.1:8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://10.10.10.1:8081/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     volumes:
       - ./homerouter-vpn-data:/data
     read_only: true
@@ -22,3 +36,5 @@
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - NET_ADMIN

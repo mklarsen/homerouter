@@ -1,0 +1,159 @@
+openapi: 3.0.3
+info:
+  title: homerouter-vpn API
+  version: 0.1.0
+  description: >
+    Peer management for the WireGuard access service. All /api/v1/peers and
+    /api/v1/server routes require the static Bearer token configured in
+    VPN_API_TOKEN (at least 32 characters). When the token is unset the routes
+    are not served. Authentik OIDC is planned and will replace the static token.
+servers:
+  - url: http://10.10.10.1:8081
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      security: []
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  version: { type: string, example: dev }
+  /api/v1/brand:
+    get:
+      summary: Branding shown to end users
+      security: []
+      responses:
+        "200":
+          description: Brand settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brand" }
+  /api/v1/server:
+    get:
+      summary: Server public key and connection details
+      responses:
+        "200":
+          description: Server details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Server" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/peers:
+    get:
+      summary: List peers
+      responses:
+        "200":
+          description: All peers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Peer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      summary: Create a peer
+      description: >
+        Without publicKey the server generates a key pair and embeds the private
+        key in the returned config. That key is shown once and never stored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePeerRequest" }
+      responses:
+        "201":
+          description: Peer created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreatePeerResponse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: Public key already registered or address pool exhausted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/peers/{id}:
+    delete:
+      summary: Delete a peer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Peer removed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Unknown peer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Error:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    Brand:
+      type: object
+      properties:
+        name: { type: string, example: VPN }
+        color: { type: string, example: "#2563eb" }
+        logoUrl: { type: string }
+    Server:
+      type: object
+      properties:
+        publicKey: { type: string }
+        endpoint: { type: string, example: "vpn.example.com:51820" }
+        subnet: { type: string, example: 10.10.30.0/24 }
+        allowedIps:
+          type: array
+          items: { type: string }
+    Peer:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        publicKey: { type: string }
+        address: { type: string, example: 10.10.30.2 }
+        createdAt: { type: string, format: date-time }
+    CreatePeerRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        publicKey:
+          type: string
+          description: Optional 32-byte base64 WireGuard public key
+    CreatePeerResponse:
+      type: object
+      properties:
+        peer: { $ref: "#/components/schemas/Peer" }
+        config:
+          type: string
+          description: Client configuration file
