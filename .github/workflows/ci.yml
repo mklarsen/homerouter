@@ -73,6 +73,13 @@ jobs:
         run: go test ./...
         working-directory: addons/proxy-router
 
+      - name: Test VPN service
+        run: go vet ./... && go test ./...
+        working-directory: addons/homerouter-vpn
+
+      - name: Build VPN image
+        run: docker build --tag homerouter-vpn:ci addons/homerouter-vpn
+
       - name: Test proxy extension authentication
         run: node --test addons/proxy-extension/background.test.cjs
 

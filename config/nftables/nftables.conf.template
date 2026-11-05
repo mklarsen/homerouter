@@ -24,6 +24,10 @@ define NET6    = ${LAN_NET6}
 ${SRV_CMT}define SRV     = "${SRV_BRIDGE_IF}"
 ${SRV_CMT}define SRVNET4 = ${SRV_NET4}
 
+# Optional WireGuard access.
+${VPN_CMT}define WG      = "${VPN_IF}"
+${VPN_CMT}define WGNET4  = ${VPN_NET4}
+
 # ---------------------------------------------------------------- filtering
 table inet filter {
 
@@ -72,6 +76,13 @@ ${SRV_CMT}        iifname $SRV udp dport { 53, 67, 547 } accept comment "DHCP/DN
 ${SRV_CMT}        iifname $SRV tcp dport 53 accept comment "DNS over TCP"
 ${SRV_CMT}        iifname $SRV icmp type echo-request accept
 
+        # --- WireGuard: handshake from the internet, then DNS/ping for peers ---
+${VPN_CMT}        iifname $WAN udp dport ${VPN_PORT} limit rate 30/second accept comment "WireGuard"
+${VPN_CMT}        iifname $WG ip saddr != $WGNET4 counter drop comment "wg spoofed source"
+${VPN_CMT}        iifname $WG udp dport 53 accept comment "wg DNS"
+${VPN_CMT}        iifname $WG tcp dport 53 accept comment "wg DNS over TCP"
+${VPN_CMT}        iifname $WG icmp type echo-request accept
+
         # --- DHCPv6 client replies from the ISP (kept for future use) ---
         iifname $WAN udp dport 546 udp sport 547 accept
 
@@ -112,6 +123,11 @@ ${SRV_CMT}        iifname $SRV icmp type echo-request accept
 ${SRV_CMT}        iifname $SRV oifname $WAN accept comment "servers -> WAN"
 ${SRV_CMT}        iifname $LAN oifname $SRV accept comment "LAN -> servers"
 ${SRV_LAN_CMT}        iifname $SRV oifname $LAN accept comment "servers -> LAN"
+
+        # --- WireGuard peers ---
+        # Peers may not open connections into the LAN unless VPN_TO_LAN=1.
+${VPN_CMT}        iifname $WG ip saddr != $WGNET4 counter drop comment "wg spoofed source"
+${VPN_LAN_CMT}        iifname $WG oifname $LAN accept comment "vpn -> LAN"
 
         # Traffic that matched a DNAT rule in table ip nat.
         ct status dnat accept comment "port forwards"

@@ -51,6 +51,13 @@ if [[ $SRV_ENABLE == "1" ]]; then
     fi
 fi
 
+if [[ $VPN_ENABLE == "1" ]]; then
+    log "WireGuard"
+    check "$VPN_IF present" ip link show "$VPN_IF"
+    check "WAN accepts UDP $VPN_PORT" \
+        grep -q "udp dport $VPN_PORT" <<<"$(nft list chain inet filter input)"
+fi
+
 log "Firewall"
 check "table inet filter present"     nft list table inet filter
 check "table ip nat present"          nft list table ip nat

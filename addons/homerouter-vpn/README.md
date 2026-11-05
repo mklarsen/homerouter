@@ -1,0 +1,48 @@
+# homerouter-vpn
+
+WireGuard access for the router, with Authentik (OIDC) sign-in planned for
+peer enrolment. This is a proof of concept designed to be re-brandable for
+other platforms.
+
+Status: **phase 1 skeleton**. The service only exposes `/healthz` and
+`/api/v1/brand`. It does not manage WireGuard yet.
+
+## Roadmap
+
+1. Skeleton, container, optional firewall section (this phase).
+2. `wg` interface and peer lifecycle with a fake backend for local tests.
+3. Authentik OIDC sign-in, group gating and automatic peer revocation.
+4. Enrolment UI with `.conf` and QR download.
+5. Image publishing and Authentik setup guide.
+
+## Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VPN_LISTEN` | `:8081` | HTTP listen address |
+| `VPN_BRAND_NAME` | `VPN` | Product name shown to users (max 64 chars) |
+| `VPN_BRAND_COLOR` | `#2563eb` | Accent colour, `#rrggbb` |
+| `VPN_BRAND_LOGO_URL` | empty | `https://` URL or absolute path |
+
+## Local build and test
+
+```bash
+cd addons/homerouter-vpn
+go test ./...
+docker build -t homerouter-vpn:dev .
+docker run --rm -p 8081:8081 -e VPN_BRAND_NAME="Example" homerouter-vpn:dev
+curl http://127.0.0.1:8081/api/v1/brand
+```
+
+## Firewall
+
+The router firewall has an optional WireGuard section, off by default. Set
+`VPN_ENABLE="1"` in `.env` and rerun `setup.sh` to open the UDP port on the WAN
+and accept tunnel traffic. Peers cannot reach the LAN unless `VPN_TO_LAN="1"`.
+The `wg` interface itself is created by a later phase.
+
+## Trademark
+
+"WireGuard" is a registered trademark of Jason A. Donenfeld. This project is
+not affiliated with or endorsed by the WireGuard project. WireGuard tooling is
+licensed under GPLv2; keep attribution when redistributing it.
