@@ -53,7 +53,8 @@ get_ips() {
     attempt=1
     for attempt in $(seq 1 $MAX_RETRIES); do
         ipv6=$(curl -s -m 5 https://api64.ipify.org 2>/dev/null || echo "")
-        if [[ -n "$ipv6" ]]; then
+        # Check if we got a real IPv6 (contains colon) or fallback IPv4
+        if [[ -n "$ipv6" && "$ipv6" == *":"* ]]; then
             break
         fi
         if [[ $attempt -lt $MAX_RETRIES ]]; then
@@ -61,9 +62,11 @@ get_ips() {
         fi
     done
     
-    # Fallback to "unknown" if not retrieved
+    # Fallback to "unknown" if not retrieved or if only IPv4 was returned
     [[ -z "$ipv4" ]] && ipv4="unknown"
-    [[ -z "$ipv6" ]] && ipv6="unknown"
+    if [[ -z "$ipv6" || "$ipv6" != *":"* ]]; then
+        ipv6="unknown"
+    fi
     
     echo "$ipv4" "$ipv6"
 }
@@ -78,7 +81,7 @@ insert_and_detect_change() {
     if [[ -n "$(sqlite3 "$DB_FILE" "SELECT id FROM ip_history LIMIT 1;")" ]]; then
         local last_ipv4
         local last_ipv6
-        read -r last_ipv4 last_ipv6 < <(sqlite3 "$DB_FILE" "SELECT ipv4, ipv6 FROM ip_history ORDER BY id DESC LIMIT 1;")
+        read -r last_ipv4 last_ipv6 < <(sqlite3 -separator ' ' "$DB_FILE" "SELECT ipv4, ipv6 FROM ip_history ORDER BY id DESC LIMIT 1;")
         
         if [[ "$ipv4" != "$last_ipv4" ]] || [[ "$ipv6" != "$last_ipv6" ]]; then
             change=1

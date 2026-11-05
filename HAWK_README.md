@@ -41,22 +41,31 @@ Both services run as Docker containers, orchestrated by `/opt/stacks/docker-comp
 #### Backend: `homerouter-hawk`
 ```yaml
 image: ghcr.io/mklarsen/homerouter-hawk:1.0.0
+network_mode: host  # ⚠️ CRITICAL: Required for IPv6 detection
 environment:
   - DATABASE_PATH=/data/ip-tracker.db
-ports: (internal only)
+ports: (internal only - shared via host network)
 volumes:
   - ./homerouter-hawk-data:/data  # SQLite database
 ```
 
 **What it does:**
 - Starts at container boot
-- Polls `ifconfig.me` for IPv4 and `ifconfig.me?ipv6` for IPv6 every 60 minutes
+- Runs on **host network** so it can directly access host's IPv6 address
+- Polls `api.ipify.org` for IPv4 and `api64.ipify.org` for IPv6 every 60 minutes
 - Writes results to `/data/ip-tracker.db` (SQLite)
-- Logs IP changes to `/data/ip-changes.log`
+
+**Why `network_mode: host`?**
+- Docker containers are isolated from the host network by default
+- Without host mode, containers cannot detect the host's IPv6 address
+- This causes fallback to IPv4 even if IPv6 is available
+- Host network mode allows the backend to see real IPv6 (e.g., `2001:db8::1`)
 
 #### Frontend: `homerouter-hawk-ui`
 ```yaml
-image: ghcr.io/mklarsen/homerouter-hawk-ui:1.0.0
+image: ghcr.io/mklarsen/homerouter-hawk-ui:1.0.3
+networks:
+  - traefik-edge  # ⚠️ CRITICAL: Must be on traefik-edge for Traefik Docker DNS
 environment:
   - PORT=3002
   - DATABASE_PATH=/data/ip-tracker.db
@@ -73,7 +82,13 @@ volumes:
 - Provides REST API for dashboard
 - Listens on port 3002 (configurable via `PORT` env)
 - Performs Basic Auth on all endpoints except `/api/health`
-- Exports dashboards to PDF
+- Displays IP history with charts and PDF export
+
+**Why `networks: [traefik-edge]`?**
+- Traefik needs to reach the UI container via Docker internal DNS
+- Using `network_mode: host` breaks Traefik Docker provider routing (502 Bad Gateway)
+- Solution: Run UI on `traefik-edge` network so Traefik can resolve `homerouter-hawk-ui:3002`
+- Still bound to host IP `10.10.10.1:3002` for direct LAN access
 
 ### Accessing the Dashboard
 
@@ -86,8 +101,9 @@ Password: (from .env HAWK_UI_PASSWORD)
 
 #### Via Traefik (hawk.homerouter.io)
 Requires:
-- DNS pointing `hawk.homerouter.io` to 198.51.100.132 (ISP-provided external IP)
+- DNS pointing `hawk.homerouter.io` to 198.51.100.132 (documentation example, replace with real ISP external IP)
 - Traefik file-based routing configured in `/opt/stacks/dynamic/all-routes.yml`
+- hawk-ui container on `traefik-edge` network (for Traefik Docker DNS resolution)
 
 ```
 https://hawk.homerouter.io
@@ -101,7 +117,7 @@ Located at `/opt/stacks/.env`:
 
 ```bash
 HAWK_UI_USER=admin
-HAWK_UI_PASSWORD=rsdfc¤R%#87687!
+HAWK_UI_PASSWORD=<set-a-strong-password>
 ```
 
 **⚠️ IMPORTANT:** These credentials are LOCAL to the router and never committed to git.
