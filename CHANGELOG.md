@@ -12,6 +12,8 @@ as the release notes. Merges without a new version heading do not release.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-23
+
 ### Added
 
 - `addons/homerouter-vpn` skeleton: re-brandable VPN service container with health and brand endpoints, plus an optional WireGuard firewall section (`VPN_ENABLE`, off by default; peers cannot reach the LAN unless `VPN_TO_LAN=1`).
