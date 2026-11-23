@@ -1,9 +1,11 @@
-# Homerouter override: ensure nftables starts after Docker so that flush ruleset
-# doesn't destroy Docker's iptables-nft rules before Docker has a chance to
-# recreate them.
-
-[Unit]
-After=docker.service
+# Homerouter override: restart nftables on failure.
+#
+# Do NOT add After=docker.service here. nftables is Before=network-pre.target
+# and docker.service is After=network-online.target, so nftables already loads
+# first and Docker recreates its rules afterwards. Ordering nftables after
+# docker creates a cycle (nftables -> docker -> nss-lookup -> dnsmasq ->
+# network-online -> network-pre -> nftables); systemd breaks it by deleting
+# jobs, and dnsmasq (DNS/DHCP) never starts at boot.
 
 [Service]
 Restart=on-failure
