@@ -20,7 +20,7 @@ as the release notes. Merges without a new version heading do not release.
 - `homerouter-vpn` portal: embedded brandable web page to sign in, add and remove devices, with one-time `.conf` download and QR code (strict CSP, no inline code).
 ### Fixed
 
-- Fix nftables.service failing to start on boot when Docker is active. Docker and nftables both manage firewall rules via iptables-nft. The nftables systemd service now starts *after* Docker with a retry policy, ensuring Docker's rules are re-applied after the `flush ruleset` command.
+- Fix dnsmasq (DNS/DHCP) not starting on boot. The nftables drop-in ordered nftables `After=docker.service`, which created an ordering cycle (nftables → docker → nss-lookup → dnsmasq → network-online → network-pre → nftables) that systemd broke by deleting jobs. The ordering is removed (nftables already loads before Docker); the retry policy stays.
 
 ## [0.4.2] - 2026-10-20
 
